@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
     const genAI = new GoogleGenerativeAI(getApiKey());
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-1.5-flash",
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
@@ -134,6 +134,19 @@ export async function POST(request: Request) {
     return NextResponse.json(json);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+
+    // 429 レート制限エラーの検知
+    if (
+      message.includes("429") ||
+      message.toLowerCase().includes("quota") ||
+      message.toLowerCase().includes("rate limit")
+    ) {
+      return NextResponse.json(
+        { error: "利用制限に達しました。1分ほど間隔を空けてから再度お試しください。" },
+        { status: 429 }
+      );
+    }
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

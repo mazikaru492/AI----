@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GenerateResult } from "@/lib/types";
 
 const PdfDownloadButton = dynamic(
@@ -16,6 +16,16 @@ export default function Home() {
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [waitSeconds, setWaitSeconds] = useState(0);
+
+  // カウントダウンタイマー
+  useEffect(() => {
+    if (waitSeconds <= 0) return;
+    const timer = setTimeout(() => {
+      setWaitSeconds((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [waitSeconds]);
 
   const createdAt = useMemo(() => {
     const now = new Date();
@@ -47,6 +57,17 @@ export default function Home() {
       });
 
       const data = (await res.json()) as unknown;
+
+      // 429 レート制限エラーの処理
+      if (res.status === 429) {
+        setWaitSeconds(60);
+        const message =
+          typeof data === "object" && data && "error" in data
+            ? String((data as { error: unknown }).error)
+            : "利用制限に達しました。1分ほど間隔を空けてください。";
+        throw new Error(message);
+      }
+
       if (!res.ok) {
         const message =
           typeof data === "object" && data && "error" in data
@@ -116,9 +137,9 @@ export default function Home() {
               type="button"
               className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
               onClick={generate}
-              disabled={isLoading || !imageFile}
+              disabled={isLoading || !imageFile || waitSeconds > 0}
             >
-              類題を生成
+              {waitSeconds > 0 ? `再試行まであと ${waitSeconds} 秒` : "類題を生成"}
             </button>
 
             {imageFile ? (
