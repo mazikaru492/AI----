@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GenerateResult } from "@/lib/types";
+import { useAppShell } from "@/components/AppShell";
 
 const PdfDownloadButton = dynamic(
   () =>
@@ -14,9 +15,16 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
+  const [createdAt, setCreatedAt] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waitSeconds, setWaitSeconds] = useState(0);
+
+  const WAIT_TOTAL_SECONDS = 60;
+  const isWaiting = waitSeconds > 0;
+
+  const { addHistoryEntry, selectedHistoryEntry, clearSelectedHistoryEntry } =
+    useAppShell();
 
   // カウントダウンタイマー
   useEffect(() => {
@@ -27,7 +35,16 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [waitSeconds]);
 
-  const createdAt = useMemo(() => {
+  // 履歴から選択されたら、結果を再表示
+  useEffect(() => {
+    if (!selectedHistoryEntry) return;
+    setResult(selectedHistoryEntry.result);
+    setCreatedAt(selectedHistoryEntry.createdAt);
+    setError(null);
+    clearSelectedHistoryEntry();
+  }, [selectedHistoryEntry, clearSelectedHistoryEntry]);
+
+  function formatNow(): string {
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
@@ -35,11 +52,12 @@ export default function Home() {
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
     return `${y}-${m}-${d} ${hh}:${mm}`;
-  }, [result]);
+  }
 
   async function generate() {
     setError(null);
     setResult(null);
+    setCreatedAt("");
 
     if (!imageFile) {
       setError("先に問題画像を撮影（または選択）してください。\n");
@@ -60,7 +78,7 @@ export default function Home() {
 
       // 429 レート制限エラーの処理
       if (res.status === 429) {
-        setWaitSeconds(60);
+        setWaitSeconds(WAIT_TOTAL_SECONDS);
         const message =
           typeof data === "object" && data && "error" in data
             ? String((data as { error: unknown }).error)
@@ -76,7 +94,17 @@ export default function Home() {
         throw new Error(message);
       }
 
-      setResult(data as GenerateResult);
+      const generated = data as GenerateResult;
+      const ts = formatNow();
+      setResult(generated);
+      setCreatedAt(ts);
+
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : String(Date.now());
+
+      addHistoryEntry({ id, createdAt: ts, result: generated });
     } catch (e) {
       const message = e instanceof Error ? e.message : "不明なエラー";
       setError(message);
@@ -86,7 +114,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-dvh bg-zinc-50">
+    <>
       {isLoading ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-[92%] max-w-sm rounded-2xl bg-white p-6 text-center">
@@ -135,12 +163,38 @@ export default function Home() {
 
             <button
               type="button"
-              className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+              className={
+                isWaiting
+                  ? "h-12 w-full rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200"
+                  : "h-12 w-full rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              }
               onClick={generate}
-              disabled={isLoading || !imageFile || waitSeconds > 0}
+              disabled={isLoading || !imageFile || isWaiting}
             >
-              {waitSeconds > 0 ? `再試行まであと ${waitSeconds} 秒` : "類題を生成"}
+              {isWaiting ? `再試行まであと ${waitSeconds} 秒` : "類題を生成"}
             </button>
+
+            {isWaiting ? (
+              <div className="-mt-1">
+                <div
+                  className="h-2 w-full overflow-hidden rounded-full bg-zinc-200"
+                  aria-label="retry countdown"
+                >
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
+                    style={{
+                      width: `${Math.max(
+                        0,
+                        Math.min(100, (waitSeconds / WAIT_TOTAL_SECONDS) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-zinc-600">
+                  現在、AIが休憩中です。あと少しで次の問題を作成できます。
+                </p>
+              </div>
+            ) : null}
 
             {imageFile ? (
               <p className="text-xs text-zinc-600">選択中: {imageFile.name}</p>
@@ -189,6 +243,6 @@ export default function Home() {
           </section>
         ) : null}
       </main>
-    </div>
+    </>
   );
 }
