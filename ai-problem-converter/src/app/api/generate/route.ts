@@ -1,0 +1,139 @@
+import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export const runtime = "nodejs";
+
+type GenerateResult = {
+  extracted: {
+    original_problem_text: string;
+    original_math_expressions?: string[];
+    diagram_description?: string;
+  };
+  new_problem: {
+    problem_text: string;
+  };
+  solution: {
+    steps: string[];
+    final_answer: string;
+  };
+  audit: {
+    changed_values: Array<{ from: string; to: string }>;
+    answer_simplicity: "integer" | "simple_fraction";
+  };
+};
+
+function getApiKey(): string {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("GEMINI_API_KEY is not set. Add it to .env.local");
+  }
+  return key;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  return Buffer.from(buffer).toString("base64");
+}
+
+const SYSTEM_INSTRUCTION = `あなたは塾講師を助ける数学の出題支援AIです。
+
+重要: 推論過程（思考のメモ、自己対話、検証ログ、リトライの途中経過）は出力しない。内部でのみ行い、最終的にJSONのみを返す。
+
+目的: 入力画像に写る数学問題から、数値だけを変更した「類題」を1問作り、模範解答（途中式）を作成する。
+
+あなたの内部ワークフロー（必須）:
+Step 1 (抽出): 画像内の問題文・数式・図形の意味を、できるだけ正確にテキスト化する。
+Step 2 (改変): 論理構造は維持しつつ、数値（係数・定数・条件値など）をランダムに変更して新しい問題を作る。
+  - 制約: 答えが「きれいな整数」または「簡単な分数（既約の小さな分母）」になるよう調整する。
+Step 3 (検証/才覚): 新しい問題を自分で解き、解法が成立し計算が過度に複雑でないことを確認する。
+  - 自己修正(リトライ・ループ): もし解法が成立しない／答えが汚い／計算が複雑すぎる場合は、数値を変更してStep 2からやり直す。
+  - 1回の応答の中で内部的に最大5回までリトライしてよい。合格した時点で停止。
+Step 4 (出力): 合格した「新しい問題文」と「模範解答（途中式含む）」を、指定スキーマのJSONで出力する。
+
+出力スキーマ（厳守・余計なキー禁止）:
+{
+  "extracted": {
+    "original_problem_text": string,
+    "original_math_expressions"?: string[],
+    "diagram_description"?: string
+  },
+  "new_problem": {
+    "problem_text": string
+  },
+  "solution": {
+    "steps": string[],
+    "final_answer": string
+  },
+  "audit": {
+    "changed_values": Array<{"from": string, "to": string}>,
+    "answer_simplicity": "integer" | "simple_fraction"
+  }
+}
+`;
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("image");
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: "image file is required (field name: image)" },
+        { status: 400 }
+      );
+    }
+
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { error: "only image/* is supported" },
+        { status: 400 }
+      );
+    }
+
+    const imageBytes = await file.arrayBuffer();
+    const base64 = arrayBufferToBase64(imageBytes);
+
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-pro",
+      systemInstruction: SYSTEM_INSTRUCTION,
+    });
+
+    const userPrompt = `次の画像を解析し、上記の内部ワークフローに従ってJSONを生成してください。`;
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { data: base64, mimeType: file.type } },
+            { text: userPrompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.4,
+      },
+    });
+
+    const text = result.response.text();
+
+    let json: GenerateResult;
+    try {
+      json = JSON.parse(text) as GenerateResult;
+    } catch {
+      return NextResponse.json(
+        {
+          error: "model did not return valid JSON",
+          raw: text,
+        },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json(json);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
