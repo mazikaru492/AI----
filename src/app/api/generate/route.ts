@@ -23,9 +23,12 @@ type GenerateResult = {
 };
 
 function getApiKey(): string {
-  const key = process.env.GEMINI_API_KEY;
+  // Vercelの環境変数名に対応（GOOGLE_GEMINI_API_KEYまたはGEMINI_API_KEY）
+  const key = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) {
-    throw new Error("GEMINI_API_KEY is not set. Add it to .env.local");
+    throw new Error(
+      "GOOGLE_GEMINI_API_KEY or GEMINI_API_KEY is not set. Add it to .env.local or Vercel Environment Variables"
+    );
   }
   return key;
 }
@@ -92,9 +95,16 @@ export async function POST(request: Request) {
     const imageBytes = await file.arrayBuffer();
     const base64 = arrayBufferToBase64(imageBytes);
 
-    const genAI = new GoogleGenerativeAI(getApiKey());
+    // Gemini API初期化
+    const apiKey = getApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // モデル名を最新の安定版に明示的に指定
+    const MODEL_NAME = "gemini-1.5-flash-latest";
+    console.log(`[Gemini API] Using model: ${MODEL_NAME}`);
+
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: MODEL_NAME,
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
@@ -135,6 +145,13 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
 
+    // 詳細なエラーログを出力
+    console.error("[Gemini API Error] Full error:", error);
+    console.error("[Gemini API Error] Error message:", message);
+    if (error instanceof Error && error.stack) {
+      console.error("[Gemini API Error] Stack trace:", error.stack);
+    }
+
     // 429 レート制限エラーの検知
     if (
       message.includes("429") ||
@@ -142,8 +159,25 @@ export async function POST(request: Request) {
       message.toLowerCase().includes("rate limit")
     ) {
       return NextResponse.json(
-        { error: "利用制限に達しました。1分ほど間隔を空けてから再度お試しください。" },
+        {
+          error:
+            "利用制限に達しました。1分ほど間隔を空けてから再度お試しください。",
+        },
         { status: 429 }
+      );
+    }
+
+    // 404エラー（モデルが見つからない）の検知
+    if (
+      message.includes("404") ||
+      message.toLowerCase().includes("not found")
+    ) {
+      console.error("[Gemini API Error] Model not found error detected");
+      return NextResponse.json(
+        {
+          error: `モデルが見つかりません: ${message}. APIキーとモデル名を確認してください。`,
+        },
+        { status: 404 }
       );
     }
 
