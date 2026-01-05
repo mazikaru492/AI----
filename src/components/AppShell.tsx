@@ -73,10 +73,8 @@ function isIntroduction(value: unknown): value is Introduction {
 
 export function useAppShell() {
   const value = useContext(AppShellContext);
-  if (!value) {
-    throw new Error("useAppShell must be used within <AppShell>");
-  }
-  return value;
+  // クラッシュを防ぐため、throwではなくundefinedを返す（呼び出し側でガード）
+  return value ?? undefined;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {

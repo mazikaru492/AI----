@@ -23,8 +23,10 @@ export default function Home() {
   const WAIT_TOTAL_SECONDS = 60;
   const isWaiting = waitSeconds > 0;
 
-  const { addHistoryEntry, selectedHistoryEntry, clearSelectedHistoryEntry } =
-    useAppShell();
+  const shell = useAppShell();
+  const addHistoryEntry = shell?.addHistoryEntry;
+  const selectedHistoryEntry = shell?.selectedHistoryEntry;
+  const clearSelectedHistoryEntry = shell?.clearSelectedHistoryEntry;
 
   // カウントダウンタイマー
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function Home() {
 
   // 履歴から選択されたら、結果を再表示
   useEffect(() => {
-    if (!selectedHistoryEntry) return;
+    if (!selectedHistoryEntry || !clearSelectedHistoryEntry) return;
     setResult(selectedHistoryEntry.result);
     setCreatedAt(selectedHistoryEntry.createdAt);
     setError(null);
@@ -105,7 +107,9 @@ export default function Home() {
           ? (crypto as Crypto).randomUUID()
           : String(Date.now());
 
-      addHistoryEntry({ id, createdAt: ts, result: generated });
+      if (addHistoryEntry) {
+        addHistoryEntry({ id, createdAt: ts, result: generated });
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "不明なエラー";
       setError(message);
