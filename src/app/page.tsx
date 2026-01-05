@@ -221,27 +221,37 @@ export default function Home() {
           <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
             <h2 className="text-sm font-semibold text-zinc-900">生成結果</h2>
 
-            <div className="mt-3 space-y-3">
-              <div className="rounded-xl bg-zinc-50 p-3">
-                <p className="text-xs font-semibold text-zinc-700">問題</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-900">
-                  {result.new_problem.problem_text}
-                </p>
-              </div>
+            <div className="mt-3 space-y-4">
+              {result.map((problem, idx) => (
+                <div key={problem.id} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+                      {idx + 1}
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      問題 {idx + 1}
+                    </p>
+                  </div>
 
-              <div className="rounded-xl bg-zinc-50 p-3">
-                <p className="text-xs font-semibold text-zinc-700">模範解答</p>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-zinc-900">
-                  {result.solution.steps.map((s, idx) => (
-                    <li key={idx} className="whitespace-pre-wrap">
-                      {s}
-                    </li>
-                  ))}
-                </ol>
-                <p className="mt-3 text-sm font-semibold text-zinc-900">
-                  答え: {result.solution.final_answer}
-                </p>
-              </div>
+                  <div className="rounded-xl bg-zinc-50 p-3">
+                    <p className="text-xs font-semibold text-zinc-700">類題</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-900">
+                      {problem.question}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-zinc-50 p-3">
+                    <p className="text-xs font-semibold text-zinc-700">解答</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-900">
+                      {problem.answer}
+                    </p>
+                  </div>
+
+                  {idx < result.length - 1 && (
+                    <div className="border-t border-zinc-200" />
+                  )}
+                </div>
+              ))}
 
               <PdfDownloadButton result={result} createdAt={createdAt} />
             </div>

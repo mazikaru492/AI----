@@ -35,6 +35,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#bbb",
     padding: 10,
+    marginBottom: 12,
+  },
+  problemNumber: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 6,
   },
   line: {
     marginBottom: 4,
@@ -83,9 +89,12 @@ export function ProblemPdfDocument({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>問題</Text>
-          <View style={styles.box}>
-            <MultilineText text={data.new_problem.problem_text} />
-          </View>
+          {data.map((problem, idx) => (
+            <View key={problem.id} style={styles.box}>
+              <Text style={styles.problemNumber}>({idx + 1})</Text>
+              <MultilineText text={problem.question} />
+            </View>
+          ))}
         </View>
 
         <View style={styles.footer}>
@@ -102,17 +111,13 @@ export function ProblemPdfDocument({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>模範解答（途中式）</Text>
-          <View style={styles.box}>
-            {data.solution.steps.map((s, idx) => (
-              <Text key={idx} style={styles.line}>
-                {idx + 1}. {s}
-              </Text>
-            ))}
-            <Text style={{ marginTop: 10, fontSize: 12, fontWeight: 700 }}>
-              答え: {data.solution.final_answer}
-            </Text>
-          </View>
+          <Text style={styles.sectionTitle}>模範解答</Text>
+          {data.map((problem, idx) => (
+            <View key={problem.id} style={styles.box}>
+              <Text style={styles.problemNumber}>({idx + 1})</Text>
+              <MultilineText text={problem.answer} />
+            </View>
+          ))}
         </View>
 
         <View style={styles.footer}>

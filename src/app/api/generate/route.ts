@@ -3,29 +3,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = "nodejs";
 
-type GenerateResult = {
-  extracted: {
-    original_problem_text: string;
-    original_math_expressions?: string[];
-    diagram_description?: string;
-  };
-  new_problem: {
-    problem_text: string;
-  };
-  solution: {
-    steps: string[];
-    final_answer: string;
-  };
-  audit: {
-    changed_values: Array<{ from: string; to: string }>;
-    answer_simplicity: "integer" | "simple_fraction";
-  };
+type ProblemItem = {
+  id: number;
+  original: string;
+  question: string;
+  answer: string;
 };
 
-type GeminiListModel = {
-  name: string;
-  supportedGenerationMethods?: string[];
-};
+type GenerateResult = ProblemItem[];
 
 function getApiKey(): string {
   // Vercelの環境変数名に対応（GOOGLE_GEMINI_API_KEYまたはGEMINI_API_KEY）
@@ -42,102 +27,28 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return Buffer.from(buffer).toString("base64");
 }
 
-function normalizeModelName(input: string): string {
-  // SDKには `gemini-...` の形式で渡す（`models/` プレフィックス等を除去）
-  const trimmed = input.trim();
-  const withoutPrefix = trimmed.replace(/^models\//i, "");
-  // 万一余計な空白や改行が混ざっていても安全側に倒す
-  return withoutPrefix.split(/\s+/)[0];
-}
-
-async function listAvailableModels(apiKey: string): Promise<GeminiListModel[]> {
-  // @google/generative-ai が利用するエンドポイント(v1beta)に合わせる
-  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      // Next.js Route Handler: fetch は Node ランタイムで動作
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("[Gemini API] ListModels failed", {
-        status: res.status,
-        statusText: res.statusText,
-        body,
-      });
-      return [];
-    }
-
-    const data = (await res.json()) as { models?: GeminiListModel[] };
-    return Array.isArray(data.models) ? data.models : [];
-  } catch (error) {
-    console.error("[Gemini API] ListModels threw", error);
-    return [];
-  }
-}
-
-function pickModel(
-  listed: GeminiListModel[],
-  preferred: string[]
-): { chosen: string | null; supported: string[] } {
-  const supported = listed
-    .filter((m) =>
-      (m.supportedGenerationMethods || []).includes("generateContent")
-    )
-    .map((m) => normalizeModelName(m.name));
-
-  const supportedSet = new Set(supported);
-
-  for (const p of preferred) {
-    const normalized = normalizeModelName(p);
-    if (supportedSet.has(normalized)) return { chosen: normalized, supported };
-  }
-
-  // 優先モデルが無い場合は、flash系 → それ以外 の順で選ぶ
-  const flash = supported.find((m) => m.includes("flash"));
-  if (flash) return { chosen: flash, supported };
-
-  const first = supported[0] ?? null;
-  return { chosen: first, supported };
-}
-
 const SYSTEM_INSTRUCTION = `あなたは塾講師を助ける数学の出題支援AIです。
 
-重要: 推論過程（思考のメモ、自己対話、検証ログ、リトライの途中経過）は出力しない。内部でのみ行い、最終的にJSONのみを返す。
+重要: 推論過程は出力せず、最終的にJSONのみを返してください。
 
-目的: 入力画像に写る数学問題から、数値だけを変更した「類題」を1問作り、模範解答（途中式）を作成する。
+目的: 入力画像に含まれるすべての数学問題を特定し、それらすべてに対して数値を変えた類題を作成してください。
 
-あなたの内部ワークフロー（必須）:
-Step 1 (抽出): 画像内の問題文・数式・図形の意味を、できるだけ正確にテキスト化する。
-Step 2 (改変): 論理構造は維持しつつ、数値（係数・定数・条件値など）をランダムに変更して新しい問題を作る。
-  - 制約: 答えが「きれいな整数」または「簡単な分数（既約の小さな分母）」になるよう調整する。
-Step 3 (検証/才覚): 新しい問題を自分で解き、解法が成立し計算が過度に複雑でないことを確認する。
-  - 自己修正(リトライ・ループ): もし解法が成立しない／答えが汚い／計算が複雑すぎる場合は、数値を変更してStep 2からやり直す。
-  - 1回の応答の中で内部的に最大5回までリトライしてよい。合格した時点で停止。
-Step 4 (出力): 合格した「新しい問題文」と「模範解答（途中式含む）」を、指定スキーマのJSONで出力する。
+ワークフロー:
+1. 画像内のすべての問題を上から下、左から右の順に特定する
+2. 各問題について、数値のみを変更した類題を作成する
+3. 答えが「きれいな整数」または「簡単な分数」になるよう調整する
+4. 各問題の解答も記載する
 
-出力スキーマ（厳守・余計なキー禁止）:
-{
-  "extracted": {
-    "original_problem_text": string,
-    "original_math_expressions"?: string[],
-    "diagram_description"?: string
-  },
-  "new_problem": {
-    "problem_text": string
-  },
-  "solution": {
-    "steps": string[],
-    "final_answer": string
-  },
-  "audit": {
-    "changed_values": Array<{"from": string, "to": string}>,
-    "answer_simplicity": "integer" | "simple_fraction"
-  }
-}
+出力形式（厳守）:
+[
+  { "id": 1, "original": "元の問題文", "question": "作成した類題", "answer": "類題の解答" },
+  { "id": 2, "original": "元の問題文", "question": "作成した類題", "answer": "類題の解答" }
+]
+
+注意:
+- 問題の順番は画像の上から下、左から右の順を厳守
+- id は 1 から順に採番
+- 画像に問題が1つしかない場合も配列で返す
 `;
 
 export async function POST(request: Request) {
@@ -166,37 +77,8 @@ export async function POST(request: Request) {
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // モデル名の正規化 + 実在するモデルを自動選択（v1betaで404になりにくくする）
-    const requestedModel = normalizeModelName(
-      process.env.GEMINI_MODEL || "gemini-1.5-flash"
-    );
-
-    const preferredModels = [
-      requestedModel,
-      `${requestedModel}-latest`,
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-    ].map(normalizeModelName);
-
-    const listedModels = await listAvailableModels(apiKey);
-    const { chosen: MODEL_NAME, supported } = pickModel(
-      listedModels,
-      preferredModels
-    );
-
-    console.log("[Gemini API] Requested model:", requestedModel);
-    console.log("[Gemini API] Preferred models:", preferredModels);
-    console.log(
-      "[Gemini API] Supported generateContent models (normalized):",
-      supported
-    );
-
-    if (!MODEL_NAME) {
-      throw new Error(
-        "No generateContent-capable models were returned by ListModels. Check API key permissions and available models in AI Studio."
-      );
-    }
-
+    // モデル名を gemini-1.5-flash に固定
+    const MODEL_NAME = "gemini-1.5-flash";
     console.log(`[Gemini API] Using model: ${MODEL_NAME}`);
 
     const model = genAI.getGenerativeModel({

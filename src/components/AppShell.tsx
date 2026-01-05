@@ -32,6 +32,15 @@ const AppShellContext = createContext<AppShellContextValue | null>(null);
 const STORAGE_KEY = "ai-problem-converter:history";
 
 function safeGetProblemText(result: unknown): string {
+  // 配列形式の場合
+  if (Array.isArray(result) && result.length > 0) {
+    const first = result[0] as { question?: unknown } | undefined;
+    const text = first?.question;
+    if (typeof text === "string" && text.trim()) {
+      return result.length > 1 ? `${text} 他${result.length - 1}問` : text;
+    }
+  }
+  // 旧形式の場合（後方互換）
   const r = result as
     | {
         new_problem?: { problem_text?: unknown };

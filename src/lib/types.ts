@@ -1,4 +1,8 @@
-export type GenerateResult = {
-  new_problem: { problem_text: string };
-  solution: { steps: string[]; final_answer: string };
+export type ProblemItem = {
+  id: number;
+  original: string;
+  question: string;
+  answer: string;
 };
+
+export type GenerateResult = ProblemItem[];
