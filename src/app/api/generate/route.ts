@@ -109,10 +109,33 @@ export async function POST(request: Request) {
     let json: GenerateResult;
     try {
       json = JSON.parse(text) as GenerateResult;
-    } catch {
+
+      // 配列形式の検証
+      if (!Array.isArray(json)) {
+        throw new Error("Response is not an array");
+      }
+
+      // 最低限のフィールド検証
+      if (json.length === 0) {
+        throw new Error("Empty result array");
+      }
+
+      // 各アイテムの基本的な型チェック
+      for (const item of json) {
+        if (
+          typeof item.id !== "number" ||
+          typeof item.question !== "string" ||
+          typeof item.answer !== "string"
+        ) {
+          throw new Error("Invalid problem item structure");
+        }
+      }
+    } catch (e) {
+      const parseError = e instanceof Error ? e.message : "Parse failed";
       return NextResponse.json(
         {
           error: "model did not return valid JSON",
+          details: parseError,
           raw: text,
         },
         { status: 502 }
