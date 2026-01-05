@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { GenerateResult } from "@/lib/types";
 import { Clock, User, X } from "lucide-react";
 import Image from "next/image";
@@ -24,6 +31,16 @@ const AppShellContext = createContext<AppShellContextValue | null>(null);
 
 const STORAGE_KEY = "ai-problem-converter:history";
 
+function safeGetProblemText(result: unknown): string {
+  const r = result as
+    | {
+        new_problem?: { problem_text?: unknown };
+      }
+    | undefined;
+  const text = r?.new_problem?.problem_text;
+  return typeof text === "string" && text.trim() ? text : "(問題文なし)";
+}
+
 function safeParseHistory(raw: string | null): HistoryEntry[] {
   if (!raw) return [];
   try {
@@ -32,16 +49,26 @@ function safeParseHistory(raw: string | null): HistoryEntry[] {
     return parsed.filter((x): x is HistoryEntry => {
       if (!x || typeof x !== "object") return false;
       const o = x as Record<string, unknown>;
-      return (
-        typeof o.id === "string" &&
-        typeof o.createdAt === "string" &&
-        typeof o.result === "object" &&
-        o.result !== null
-      );
+      if (typeof o.id !== "string") return false;
+      if (typeof o.createdAt !== "string") return false;
+      if (typeof o.result !== "object" || o.result === null) return false;
+      // 旧形式や壊れたデータでもクラッシュしないよう、最低限の形だけ確認
+      return true;
     });
   } catch {
     return [];
   }
+}
+
+function isIntroduction(value: unknown): value is Introduction {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.name !== "string") return false;
+  if (typeof v.profile_text !== "string") return false;
+  if (!v.image || typeof v.image !== "object") return false;
+  const img = v.image as Record<string, unknown>;
+  if (typeof img.url !== "string") return false;
+  return true;
 }
 
 export function useAppShell() {
@@ -63,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [introLoading, setIntroLoading] = useState(false);
   const [introError, setIntroError] = useState<string | null>(null);
 
-  async function loadIntroduction() {
+  const loadIntroduction = useCallback(async () => {
     if (introLoading || introduction) return;
     setIntroError(null);
     setIntroLoading(true);
@@ -77,24 +104,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : `Request failed (${res.status})`;
         throw new Error(message);
       }
-      setIntroduction(data as Introduction);
+      if (!isIntroduction(data)) {
+        throw new Error(
+          "microCMSの応答形式が想定と異なります。フィールドを確認してください。"
+        );
+      }
+      setIntroduction(data);
     } catch (e) {
       const message = e instanceof Error ? e.message : "不明なエラー";
       setIntroError(message);
     } finally {
       setIntroLoading(false);
     }
-  }
+  }, [introLoading, introduction]);
 
   // 初回のみ localStorage から読み込み
   useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    setHistory(safeParseHistory(raw));
+    try {
+      if (typeof window === "undefined") return;
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      setHistory(safeParseHistory(raw));
+    } catch (e) {
+      console.warn("[history] localStorage read failed", e);
+      setHistory([]);
+    }
   }, []);
 
   // history 更新時に localStorage に保存
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    try {
+      if (typeof window === "undefined") return;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.warn("[history] localStorage write failed", e);
+    }
   }, [history]);
 
   const contextValue = useMemo<AppShellContextValue>(
@@ -110,8 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       selectedHistoryEntry,
       clearSelectedHistoryEntry: () => setSelectedHistoryEntry(null),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedHistoryEntry, introLoading, introduction]
+    [selectedHistoryEntry, loadIntroduction]
   );
 
   return (
@@ -194,7 +236,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             {item.createdAt}
                           </p>
                           <p className="mt-1 line-clamp-2 text-sm text-zinc-900">
-                            {item.result.new_problem.problem_text}
+                            {safeGetProblemText(item.result)}
                           </p>
                         </button>
                       </li>
@@ -264,13 +306,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="relative h-14 w-14 overflow-hidden rounded-full ring-1 ring-black/5">
-                        <Image
-                          src={introduction.image.url}
-                          alt={introduction.name}
-                          fill
-                          className="object-cover"
-                          sizes="56px"
-                        />
+                        {introduction.image?.url ? (
+                          <Image
+                            src={introduction.image.url}
+                            alt={introduction.name}
+                            fill
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-zinc-200" />
+                        )}
                       </div>
                       <div>
                         <p className="text-base font-semibold text-zinc-900">

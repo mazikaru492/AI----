@@ -100,8 +100,9 @@ export default function Home() {
       setCreatedAt(ts);
 
       const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
+        typeof crypto !== "undefined" &&
+        typeof (crypto as Crypto).randomUUID === "function"
+          ? (crypto as Crypto).randomUUID()
           : String(Date.now());
 
       addHistoryEntry({ id, createdAt: ts, result: generated });
