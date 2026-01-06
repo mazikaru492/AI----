@@ -23,7 +23,7 @@ export function getMicrocmsClient() {
 
 export async function getIntroduction(queries?: MicroCMSQueries) {
   // ユーザー提供コードを基盤にした取得
-  // エンドポイント名を 'name' に変更
+  // エンドポイント名を 'name' に設定
   const client = getMicrocmsClient();
   return client.get<Introduction>({ endpoint: "name", queries });
 }

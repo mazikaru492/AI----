@@ -1,6 +1,6 @@
 export type Introduction = {
   name: string;
-  profile_text: string;
+  zikosyoukai: string;
   image: {
     url: string;
   };
