@@ -176,10 +176,21 @@ async function resolveModelName(apiKey: string): Promise<string> {
     );
   }
 
-  // なるべく高速なflash系を優先（なければ先頭）
-  const preferred =
-    generateContentModels.find((name) => /flash/i.test(name)) ||
-    generateContentModels[0];
+  // なるべく高速なflash系を優先（新しいバージョンから試す）
+  // gemini-2.0-flash > gemini-2.5-flash > その他flash > 先頭
+  const preferredCandidates = [
+    /gemini-2\.0-flash/i,
+    /gemini-2\.5-flash/i,
+    /gemini-2\.\d+-flash/i,
+    /flash/i,
+  ];
+
+  let preferred: string | undefined;
+  for (const pattern of preferredCandidates) {
+    preferred = generateContentModels.find((name) => pattern.test(name));
+    if (preferred) break;
+  }
+  preferred = preferred || generateContentModels[0];
 
   cachedResolvedModel = preferred;
   cachedResolvedModelAt = now;
