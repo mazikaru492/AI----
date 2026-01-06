@@ -73,7 +73,7 @@ function isIntroduction(value: unknown): value is Introduction {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   if (typeof v.name !== "string") return false;
-  if (typeof v.profile_text !== "string") return false;
+  if (typeof v.zikosyoukai !== "string") return false;
   if (!v.image || typeof v.image !== "object") return false;
   const img = v.image as Record<string, unknown>;
   if (typeof img.url !== "string") return false;
@@ -337,7 +337,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                     <div className="rounded-xl bg-zinc-50 p-3">
                       <p className="whitespace-pre-wrap text-sm text-zinc-900">
-                        {introduction.profile_text}
+                        {introduction.zikosyoukai}
                       </p>
                     </div>
 
