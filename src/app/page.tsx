@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import imageCompression from "browser-image-compression";
 import type { GenerateResult } from "@/lib/types";
 import { useAppShell } from "@/components/AppShell";
 
@@ -17,6 +18,7 @@ export default function Home() {
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [createdAt, setCreatedAt] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>("生成中…");
   const [error, setError] = useState<string | null>(null);
   const [waitSeconds, setWaitSeconds] = useState(0);
 
@@ -66,11 +68,28 @@ export default function Home() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("image", imageFile);
-
     setIsLoading(true);
     try {
+      setLoadingMessage("画像を最適化中...");
+
+      let optimizedFile: File;
+      try {
+        optimizedFile = (await imageCompression(imageFile, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 2048,
+          useWebWorker: true,
+        })) as File;
+      } catch (e) {
+        console.warn("[image] compression failed", e);
+        throw new Error(
+          "画像の最適化に失敗しました。別の画像でもう一度お試しください。"
+        );
+      }
+
+      const formData = new FormData();
+      formData.append("image", optimizedFile, optimizedFile.name);
+
+      setLoadingMessage("生成中…");
       const res = await fetch("/api/generate", {
         method: "POST",
         body: formData,
@@ -127,7 +146,9 @@ export default function Home() {
               className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900"
               aria-label="loading"
             />
-            <p className="text-sm font-medium text-zinc-900">生成中…</p>
+            <p className="text-sm font-medium text-zinc-900">
+              {loadingMessage}
+            </p>
             <p className="mt-1 text-xs text-zinc-600">操作をロックしています</p>
           </div>
         </div>
