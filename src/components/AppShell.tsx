@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { HistoryEntry, Introduction } from "@/types";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { useApiUsage } from "@/hooks/useApiUsage";
 import { Navbar } from "./Navbar";
 import { HistoryModal } from "./HistoryModal";
 import { ProfileModal } from "./ProfileModal";
@@ -23,6 +24,12 @@ interface AppShellContextValue {
   addHistoryEntry: (entry: HistoryEntry) => void;
   selectedHistoryEntry: HistoryEntry | null;
   clearSelectedHistoryEntry: () => void;
+  incrementApiUsage: () => void;
+  apiUsage: {
+    count: number;
+    limit: number;
+    hydrated: boolean;
+  };
 }
 
 const AppShellContext = createContext<AppShellContextValue | null>(null);
@@ -75,6 +82,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Modal state
   const [historyOpen, setHistoryOpen] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
+
+  // API usage tracking
+  const apiUsage = useApiUsage();
 
   // History state
   const [history, setHistory] = useLocalStorageState<HistoryEntry[]>(
@@ -136,8 +146,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       },
       selectedHistoryEntry,
       clearSelectedHistoryEntry: () => setSelectedHistoryEntry(null),
+      incrementApiUsage: apiUsage.incrementCount,
+      apiUsage: {
+        count: apiUsage.count,
+        limit: apiUsage.limit,
+        hydrated: apiUsage.hydrated,
+      },
     }),
-    [selectedHistoryEntry, loadIntroduction, setHistory]
+    [selectedHistoryEntry, loadIntroduction, setHistory, apiUsage.incrementCount, apiUsage.count, apiUsage.limit, apiUsage.hydrated]
   );
 
   return (

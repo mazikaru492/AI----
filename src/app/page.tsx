@@ -1,11 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GenerateResult } from '@/types';
 import { useAppShell } from '@/components/AppShell';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { UsageStatsBadge } from '@/components/ui/UsageStatsBadge';
 import { ProblemCard } from '@/components/ProblemCard';
 import { compressImage } from '@/lib/imageCompression';
 import { formatNow, generateId } from '@/lib/utils';
@@ -14,6 +15,12 @@ import { RATE_LIMIT_WAIT_SECONDS } from '@/lib/gemini';
 const PdfDownloadButton = dynamic(
   () =>
     import('@/components/PdfDownloadButton').then((m) => m.PdfDownloadButton),
+  { ssr: false }
+);
+
+const CanvasImageEditor = dynamic(
+  () =>
+    import('@/components/CanvasImageEditor').then((m) => m.CanvasImageEditor),
   { ssr: false }
 );
 
@@ -37,6 +44,31 @@ export default function Home() {
   const addHistoryEntry = shell?.addHistoryEntry;
   const selectedHistoryEntry = shell?.selectedHistoryEntry;
   const clearSelectedHistoryEntry = shell?.clearSelectedHistoryEntry;
+  const incrementApiUsage = shell?.incrementApiUsage;
+
+  // 置換数値を生成（Canvas画像エディタ用）
+  const generateReplacements = useCallback(
+    async (numbers: string[]): Promise<{ original: string; replacement: string }[]> => {
+      const res = await fetch('/api/replace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numbers }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || 'Failed to generate replacements');
+      }
+
+      // API使用回数をインクリメント
+      if (incrementApiUsage) {
+        incrementApiUsage();
+      }
+
+      return res.json();
+    },
+    [incrementApiUsage]
+  );
 
   // Countdown timer
   useEffect(() => {
@@ -110,6 +142,11 @@ export default function Home() {
       setResult(generated);
       setCreatedAt(ts);
 
+      // API使用回数をインクリメント
+      if (incrementApiUsage) {
+        incrementApiUsage();
+      }
+
       // 履歴に追加
       if (addHistoryEntry) {
         addHistoryEntry({
@@ -144,6 +181,16 @@ export default function Home() {
           <p className="text-sm text-zinc-600">
             問題用紙を撮影すると、数値だけ変えた類題を作成します。
           </p>
+          {/* API使用状況バッジ */}
+          {shell && (
+            <div className="pt-2">
+              <UsageStatsBadge
+                count={shell.apiUsage?.count ?? 0}
+                limit={shell.apiUsage?.limit ?? 1500}
+                hydrated={shell.apiUsage?.hydrated ?? false}
+              />
+            </div>
+          )}
         </header>
 
         <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
@@ -208,6 +255,23 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {/* Canvas Image Editor */}
+        {imageFile && (
+          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+              🖼️ 画像編集
+            </h2>
+            <CanvasImageEditor
+              imageFile={imageFile}
+              onComplete={() => {
+                if (incrementApiUsage) {
+                  incrementApiUsage();
+                }
+              }}
+            />
+          </section>
+        )}
 
         {/* Results section */}
         {result && (
