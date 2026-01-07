@@ -102,102 +102,18 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return Buffer.from(buffer).toString("base64");
 }
 
-let cachedResolvedModel: string | null = null;
-let cachedResolvedModelAt = 0;
-const MODEL_CACHE_MS = 1000 * 60 * 60; // 1 hour
-
-// デフォルトのモデル名（環境変数がない場合に使用）
 const DEFAULT_MODEL = "gemini-2.0-flash";
 
-function getConfiguredModelName(): string {
-  // どちらの環境変数でも指定できるようにしておく
-  const raw =
+function getModelName(): string {
+  const envModel =
     process.env.GOOGLE_GEMINI_MODEL ||
     process.env.GEMINI_MODEL ||
     process.env.GOOGLE_GENERATIVE_AI_MODEL;
-  if (!raw) return DEFAULT_MODEL;
-  // RESTの name は 'models/xxx' 形式。SDK側は 'xxx' を期待することが多いので揃える。
-  return raw.replace(/^models\//, "");
-}
 
-type ListModelsResponse = {
-  models?: Array<{
-    name?: string;
-    supportedGenerationMethods?: string[];
-  }>;
-};
-
-async function resolveModelName(apiKey: string): Promise<string> {
-  const configured = getConfiguredModelName();
-  if (configured) return configured;
-
-  const now = Date.now();
-  if (cachedResolvedModel && now - cachedResolvedModelAt < MODEL_CACHE_MS) {
-    return cachedResolvedModel;
+  if (envModel) {
+    return envModel.replace(/^models\//, "");
   }
-
-  // 利用可能モデルを取得して、generateContent対応のものを選ぶ
-  const url = new URL(
-    "https://generativelanguage.googleapis.com/v1beta/models"
-  );
-  url.searchParams.set("key", apiKey);
-
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    // Next.jsが勝手にキャッシュしないように
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(
-      `Failed to list models (${res.status}): ${body || res.statusText}`
-    );
-  }
-
-  const json = (await res.json()) as ListModelsResponse;
-  const models = Array.isArray(json.models) ? json.models : [];
-  const generateContentModels = models
-    .map((m) => ({
-      name: typeof m.name === "string" ? m.name : "",
-      methods: Array.isArray(m.supportedGenerationMethods)
-        ? m.supportedGenerationMethods
-        : [],
-    }))
-    .filter((m) => m.name && m.methods.includes("generateContent"))
-    .map((m) => m.name.replace(/^models\//, ""));
-
-  console.log(
-    "[Gemini API] Supported models (generateContent):",
-    generateContentModels.slice(0, 20)
-  );
-
-  if (generateContentModels.length === 0) {
-    throw new Error(
-      "No available models found for generateContent. Please check API key permissions."
-    );
-  }
-
-  // なるべく高速なflash系を優先（新しいバージョンから試す）
-  // gemini-2.0-flash > gemini-2.5-flash > その他flash > 先頭
-  const preferredCandidates = [
-    /gemini-2\.0-flash/i,
-    /gemini-2\.5-flash/i,
-    /gemini-2\.\d+-flash/i,
-    /flash/i,
-  ];
-
-  let preferred: string | undefined;
-  for (const pattern of preferredCandidates) {
-    preferred = generateContentModels.find((name) => pattern.test(name));
-    if (preferred) break;
-  }
-  preferred = preferred || generateContentModels[0];
-
-  cachedResolvedModel = preferred;
-  cachedResolvedModelAt = now;
-  return preferred;
+  return DEFAULT_MODEL;
 }
 
 const SYSTEM_INSTRUCTION = `あなたは塾講師を助ける数学の出題支援AIです。
@@ -250,7 +166,7 @@ export async function POST(request: Request) {
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const MODEL_NAME = await resolveModelName(apiKey);
+    const MODEL_NAME = getModelName();
     console.log(`[Gemini API] Using model: ${MODEL_NAME}`);
 
     const model = genAI.getGenerativeModel({
