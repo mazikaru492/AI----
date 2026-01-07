@@ -1,31 +1,39 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Download, RefreshCw, Wand2, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { extractNumbersFromImage, type DetectedNumber } from '@/lib/ocr';
+import { Download, RefreshCw, Wand2, Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import {
   replaceNumbersOnCanvas,
   drawImageToCanvas,
   canvasToBlob,
-  scaleBbox,
   type NumberReplacement,
 } from '@/lib/canvasUtils';
 import { generateRandomReplacements } from '@/lib/numberGenerator';
 
 interface CanvasImageEditorProps {
   imageFile: File;
-  onGenerateReplacements?: (numbers: string[]) => Promise<{ original: string; replacement: string }[]>;
   onComplete?: () => void;
 }
 
 type EditorState =
   | 'idle'
-  | 'loading-ocr'
-  | 'ocr-complete'
+  | 'loading-detect'
+  | 'detect-complete'
   | 'generating'
   | 'verifying'
   | 'complete'
   | 'error';
+
+interface DetectedNumber {
+  text: string;
+  bbox: {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  };
+  confidence: number;
+}
 
 interface VerificationResult {
   problems: Array<{
@@ -40,8 +48,7 @@ interface VerificationResult {
 const MAX_RETRY_ATTEMPTS = 3;
 
 /**
- * Canvas画像エディタ with AI検証ループ
- * 画像内の数値を検出し、ランダム数値で置換、AIで検証
+ * Canvas画像エディタ with Gemini AI座標検出 + 検証ループ
  */
 export function CanvasImageEditor({
   imageFile,
@@ -50,18 +57,18 @@ export function CanvasImageEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalImageRef = useRef<HTMLImageElement | null>(null);
   const scaleRef = useRef<number>(1);
+  const imageDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const [state, setState] = useState<EditorState>('idle');
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [detectedNumbers, setDetectedNumbers] = useState<DetectedNumber[]>([]);
   const [replacements, setReplacements] = useState<NumberReplacement[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string>('');
-  const [retryCount, setRetryCount] = useState(0);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   // 画像をCanvasに読み込み
-  const loadImage = useCallback(async () => {
-    if (!canvasRef.current) return;
+  const loadImage = useCallback(async (): Promise<{ width: number; height: number }> => {
+    if (!canvasRef.current) throw new Error('Canvas not ready');
 
     const img = new Image();
     img.src = URL.createObjectURL(imageFile);
@@ -72,34 +79,79 @@ export function CanvasImageEditor({
     });
 
     originalImageRef.current = img;
+    imageDimensionsRef.current = { width: img.naturalWidth, height: img.naturalHeight };
     const { scale } = drawImageToCanvas(canvasRef.current, img, 600);
     scaleRef.current = scale;
+
+    return { width: img.naturalWidth, height: img.naturalHeight };
   }, [imageFile]);
 
-  // OCRを実行
-  const runOCR = useCallback(async () => {
-    setState('loading-ocr');
-    setProgress(0);
+  // 画像をBase64に変換
+  const imageToBase64 = useCallback(async (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.replace(/^data:image\/\w+;base64,/, '');
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('画像の読み込みに失敗'));
+      reader.readAsDataURL(imageFile);
+    });
+  }, [imageFile]);
+
+  // Gemini AI で数値座標を検出
+  const detectWithGemini = useCallback(async () => {
+    setState('loading-detect');
     setError(null);
+    setStatusMessage('Gemini AIで数値を検出中...');
 
     try {
-      await loadImage();
+      const dimensions = await loadImage();
+      const base64 = await imageToBase64();
 
-      const result = await extractNumbersFromImage(imageFile, (p) => {
-        setProgress(p);
+      const res = await fetch('/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType: imageFile.type || 'image/png',
+          imageWidth: dimensions.width,
+          imageHeight: dimensions.height,
+        }),
       });
 
-      if (result.numbers.length === 0) {
-        throw new Error('数値が検出されませんでした');
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || 'AI検出に失敗しました');
       }
 
-      setDetectedNumbers(result.numbers);
-      setState('ocr-complete');
+      const result = (await res.json()) as { numbers: DetectedNumber[]; success: boolean };
+
+      if (!result.numbers || result.numbers.length === 0) {
+        throw new Error('数値が検出されませんでした。画像を確認してください。');
+      }
+
+      // 座標をスケールに合わせて変換
+      const scaledNumbers = result.numbers.map((n) => ({
+        ...n,
+        bbox: {
+          x0: n.bbox.x0 * scaleRef.current,
+          y0: n.bbox.y0 * scaleRef.current,
+          x1: n.bbox.x1 * scaleRef.current,
+          y1: n.bbox.y1 * scaleRef.current,
+        },
+      }));
+
+      setDetectedNumbers(scaledNumbers);
+      setState('detect-complete');
+      setStatusMessage('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'OCRエラー');
+      setError(e instanceof Error ? e.message : 'AI検出エラー');
       setState('error');
+      setStatusMessage('');
     }
-  }, [imageFile, loadImage]);
+  }, [imageFile, loadImage, imageToBase64]);
 
   // Canvasに数値を描画
   const drawReplacementsOnCanvas = useCallback((replacementsWithBbox: NumberReplacement[]) => {
@@ -128,7 +180,7 @@ export function CanvasImageEditor({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         imageBase64: base64,
-        mimeType: 'image/png'
+        mimeType: 'image/png',
       }),
     });
 
@@ -146,7 +198,6 @@ export function CanvasImageEditor({
 
     setState('generating');
     setError(null);
-    setRetryCount(0);
 
     try {
       const uniqueNumbers = [...new Set(detectedNumbers.map((n) => n.text))];
@@ -157,7 +208,6 @@ export function CanvasImageEditor({
 
       while (!isValid && attempts < MAX_RETRY_ATTEMPTS) {
         attempts++;
-        setRetryCount(attempts);
         setVerificationStatus(`試行 ${attempts}/${MAX_RETRY_ATTEMPTS}: 数値を生成中...`);
 
         // ランダム数値を生成
@@ -169,7 +219,7 @@ export function CanvasImageEditor({
           return {
             original: detected.text,
             replacement: match?.replacement || detected.text,
-            bbox: scaleBbox(detected.bbox, scaleRef.current),
+            bbox: detected.bbox,
           };
         });
 
@@ -236,14 +286,13 @@ export function CanvasImageEditor({
     }
     setReplacements([]);
     setVerificationStatus('');
-    setRetryCount(0);
-    setState('ocr-complete');
+    setState('detect-complete');
   }, []);
 
-  // 初回ロード時にOCRを実行
+  // 初回ロード時にGemini検出を実行
   useEffect(() => {
-    runOCR();
-  }, [runOCR]);
+    detectWithGemini();
+  }, [detectWithGemini]);
 
   return (
     <div className="space-y-4">
@@ -256,18 +305,18 @@ export function CanvasImageEditor({
         />
 
         {/* Loading overlay */}
-        {(state === 'loading-ocr' || state === 'generating' || state === 'verifying') && (
+        {(state === 'loading-detect' || state === 'generating' || state === 'verifying') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <p className="mt-2 text-sm text-zinc-600">
-              {state === 'loading-ocr'
-                ? `OCR処理中... ${progress}%`
+              {state === 'loading-detect'
+                ? 'Gemini AIで数値を検出中...'
                 : state === 'verifying'
                   ? 'AI検証中...'
                   : '類題を生成中...'}
             </p>
-            {verificationStatus && (
-              <p className="mt-1 text-xs text-zinc-500">{verificationStatus}</p>
+            {(statusMessage || verificationStatus) && (
+              <p className="mt-1 text-xs text-zinc-500">{statusMessage || verificationStatus}</p>
             )}
           </div>
         )}
@@ -282,11 +331,14 @@ export function CanvasImageEditor({
       )}
 
       {/* Detected numbers info */}
-      {state === 'ocr-complete' && (
+      {state === 'detect-complete' && (
         <div className="rounded-lg bg-blue-50 p-3">
-          <p className="text-sm font-medium text-blue-900">
-            {detectedNumbers.length}個の数値を検出しました
-          </p>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            <p className="text-sm font-medium text-blue-900">
+              Gemini AIで {detectedNumbers.length}個の数値を検出しました
+            </p>
+          </div>
           <p className="mt-1 text-xs text-blue-700">
             検出: {[...new Set(detectedNumbers.map((n) => n.text))].join(', ')}
           </p>
@@ -328,7 +380,7 @@ export function CanvasImageEditor({
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        {state === 'ocr-complete' && (
+        {state === 'detect-complete' && (
           <button
             type="button"
             onClick={generateWithVerification}
@@ -363,7 +415,7 @@ export function CanvasImageEditor({
         {state === 'error' && (
           <button
             type="button"
-            onClick={runOCR}
+            onClick={detectWithGemini}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-200"
           >
             <RefreshCw className="h-4 w-4" />
