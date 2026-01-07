@@ -15,6 +15,73 @@ export interface NumberReplacement {
 }
 
 /**
+ * バウンディングボックス周囲のピクセル色を平均化して取得
+ * @param ctx - Canvas 2D コンテキスト
+ * @param bbox - 対象のバウンディングボックス
+ * @param margin - 外側にサンプリングするマージン（デフォルト: 2px）
+ * @returns 平均RGB色の文字列（例: 'rgb(255, 250, 245)'）
+ */
+function sampleSurroundingColor(
+  ctx: CanvasRenderingContext2D,
+  bbox: NumberReplacement['bbox'],
+  margin: number = 2
+): string {
+  const canvas = ctx.canvas;
+  const { x0, y0, x1, y1 } = bbox;
+
+  // サンプリング領域の座標を計算（キャンバス境界内にクランプ）
+  const sampleX0 = Math.max(0, Math.floor(x0) - margin);
+  const sampleY0 = Math.max(0, Math.floor(y0) - margin);
+  const sampleX1 = Math.min(canvas.width, Math.ceil(x1) + margin);
+  const sampleY1 = Math.min(canvas.height, Math.ceil(y1) + margin);
+
+  const width = sampleX1 - sampleX0;
+  const height = sampleY1 - sampleY0;
+
+  if (width <= 0 || height <= 0) {
+    return '#FFFFFF'; // フォールバック
+  }
+
+  // 周囲の領域からピクセルデータを取得
+  const imageData = ctx.getImageData(sampleX0, sampleY0, width, height);
+  const data = imageData.data;
+
+  let totalR = 0, totalG = 0, totalB = 0;
+  let count = 0;
+
+  // バウンディングボックス内部を除外して周囲のピクセルのみサンプリング
+  const innerX0 = Math.floor(x0) - sampleX0;
+  const innerY0 = Math.floor(y0) - sampleY0;
+  const innerX1 = Math.ceil(x1) - sampleX0;
+  const innerY1 = Math.ceil(y1) - sampleY0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      // ボックス内部はスキップ
+      if (x >= innerX0 && x < innerX1 && y >= innerY0 && y < innerY1) {
+        continue;
+      }
+
+      const i = (y * width + x) * 4;
+      totalR += data[i];
+      totalG += data[i + 1];
+      totalB += data[i + 2];
+      count++;
+    }
+  }
+
+  if (count === 0) {
+    return '#FFFFFF'; // フォールバック
+  }
+
+  const avgR = Math.round(totalR / count);
+  const avgG = Math.round(totalG / count);
+  const avgB = Math.round(totalB / count);
+
+  return `rgb(${avgR}, ${avgG}, ${avgB})`;
+}
+
+/**
  * フォントサイズを座標から推定
  */
 function estimateFontSize(bbox: NumberReplacement['bbox']): number {
@@ -46,8 +113,11 @@ export function replaceNumbersOnCanvas(
   for (const replacement of replacements) {
     const { bbox, replacement: newText } = replacement;
 
-    // 1. 元の数値をマスク（白で塗りつぶし）
-    ctx.fillStyle = maskColor;
+    // 1. 周囲のピクセル色をサンプリングして適応型マスク色を取得
+    const adaptiveMaskColor = sampleSurroundingColor(ctx, bbox);
+
+    // 2. 元の数値をマスク（周囲の色で塗りつぶし）
+    ctx.fillStyle = adaptiveMaskColor;
     ctx.fillRect(
       bbox.x0 - padding,
       bbox.y0 - padding,

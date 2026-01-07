@@ -304,11 +304,18 @@ export function CanvasImageEditor({
           style={{ minHeight: '200px' }}
         />
 
-        {/* Loading overlay */}
+        {/* Loading overlay with scanning animation */}
         {(state === 'loading-detect' || state === 'generating' || state === 'verifying') && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <p className="mt-2 text-sm text-zinc-600">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm overflow-hidden">
+            {/* Scanning light bar */}
+            <div
+              className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#007AFF] to-transparent opacity-80"
+              style={{
+                animation: 'scanning 1.5s ease-in-out infinite',
+              }}
+            />
+            <Loader2 className="h-8 w-8 animate-spin text-[#007AFF]" />
+            <p className="mt-2 text-sm text-slate-700 font-medium">
               {state === 'loading-detect'
                 ? 'Gemini AIで数値を検出中...'
                 : state === 'verifying'
@@ -316,11 +323,23 @@ export function CanvasImageEditor({
                   : '類題を生成中...'}
             </p>
             {(statusMessage || verificationStatus) && (
-              <p className="mt-1 text-xs text-zinc-500">{statusMessage || verificationStatus}</p>
+              <p className="mt-1 text-xs text-slate-500">{statusMessage || verificationStatus}</p>
             )}
           </div>
         )}
       </div>
+
+      {/* Scanning animation keyframes */}
+      <style jsx>{`
+        @keyframes scanning {
+          0%, 100% {
+            top: 0%;
+          }
+          50% {
+            top: 100%;
+          }
+        }
+      `}</style>
 
       {/* Error message */}
       {error && (

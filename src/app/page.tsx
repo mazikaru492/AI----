@@ -175,15 +175,18 @@ export default function Home() {
     <>
       {isLoading && <LoadingOverlay message={loadingMessage} />}
 
-      <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
-        <header className="space-y-1">
-          <h1 className="text-xl font-semibold text-zinc-900">AI問題変換</h1>
-          <p className="text-sm text-zinc-600">
-            問題用紙を撮影すると、数値だけ変えた類題を作成します。
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-5 py-8">
+        {/* Header Section */}
+        <header className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            AI問題変換
+          </h1>
+          <p className="text-base text-slate-600">
+            問題用紙を撮影すると、数値だけ変えた類題を作成します
           </p>
           {/* API使用状況バッジ */}
           {shell && (
-            <div className="pt-2">
+            <div className="pt-3 flex justify-center">
               <UsageStatsBadge
                 count={shell.apiUsage?.count ?? 0}
                 limit={shell.apiUsage?.limit ?? 1500}
@@ -193,8 +196,9 @@ export default function Home() {
           )}
         </header>
 
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-          <div className="flex flex-col gap-3">
+        {/* Main Card - Glassmorphism */}
+        <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6">
+          <div className="flex flex-col gap-4">
             {/* Hidden file input */}
             <input
               ref={inputRef}
@@ -205,28 +209,28 @@ export default function Home() {
               onChange={handleFileChange}
             />
 
-            {/* Camera button */}
+            {/* Camera button - Pill shaped with bounce */}
             <button
               type="button"
-              className="h-12 w-full rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="h-14 w-full rounded-full bg-slate-900 px-6 text-base font-semibold text-white active:scale-95 transition-transform duration-150 disabled:opacity-50 disabled:active:scale-100"
               onClick={() => inputRef.current?.click()}
               disabled={isLoading}
             >
-              カメラで撮影（または画像を選択）
+              📷 カメラで撮影（または画像を選択）
             </button>
 
-            {/* Generate button */}
+            {/* Generate button - Apple Blue pill */}
             <button
               type="button"
               className={
                 isWaiting
-                  ? 'h-12 w-full rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200'
-                  : 'h-12 w-full rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50'
+                  ? 'h-14 w-full rounded-full bg-slate-100 px-6 text-base font-semibold text-slate-500 border border-slate-200'
+                  : 'h-14 w-full rounded-full bg-[#007AFF] px-6 text-base font-semibold text-white active:scale-95 transition-transform duration-150 hover:bg-[#0066DD] disabled:opacity-50 disabled:active:scale-100'
               }
               onClick={generate}
               disabled={isLoading || !imageFile || isWaiting}
             >
-              {isWaiting ? `再試行まであと ${waitSeconds} 秒` : '類題を生成'}
+              {isWaiting ? `⏳ 再試行まであと ${waitSeconds} 秒` : '✨ 類題を生成'}
             </button>
 
             {/* Countdown progress bar */}
@@ -239,28 +243,37 @@ export default function Home() {
             )}
 
             {/* File status */}
-            {imageFile ? (
-              <p className="text-xs text-zinc-600">選択中: {imageFile.name}</p>
-            ) : (
-              <p className="text-xs text-zinc-600">
-                まずは問題用紙を撮影してください。
-              </p>
-            )}
+            <div className="text-center">
+              {imageFile ? (
+                <p className="text-sm text-slate-600 flex items-center justify-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                  選択中: {imageFile.name}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  まずは問題用紙を撮影してください
+                </p>
+              )}
+            </div>
 
             {/* Error message */}
             {error && (
-              <p className="whitespace-pre-wrap text-sm font-medium text-red-600">
-                {error}
-              </p>
+              <div className="rounded-2xl bg-red-50/80 backdrop-blur-sm border border-red-200/50 p-4">
+                <p className="whitespace-pre-wrap text-sm font-medium text-red-600">
+                  {error}
+                </p>
+              </div>
             )}
           </div>
         </section>
 
-        {/* Canvas Image Editor */}
+        {/* Canvas Image Editor - Glassmorphism Card */}
         {imageFile && (
-          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <h2 className="mb-3 text-sm font-semibold text-zinc-900">
-              🖼️ 画像編集
+          <section
+            className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <span>🖼️</span> 画像編集
             </h2>
             <CanvasImageEditor
               imageFile={imageFile}
@@ -273,26 +286,84 @@ export default function Home() {
           </section>
         )}
 
-        {/* Results section */}
+        {/* Results section - Glassmorphism Card with animation */}
         {result && (
-          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-            <h2 className="text-sm font-semibold text-zinc-900">生成結果</h2>
+          <section
+            className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          >
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <span>📝</span> 生成結果
+            </h2>
 
-            <div className="mt-3 space-y-4">
+            <div className="mt-4 space-y-4">
               {result.map((problem, idx) => (
-                <ProblemCard
+                <div
                   key={problem.id}
-                  problem={problem}
-                  index={idx}
-                  isLast={idx === result.length - 1}
-                />
+                  className="animate-in fade-in slide-in-from-bottom-2"
+                  style={{ animationDelay: `${idx * 100}ms`, animationFillMode: 'both' }}
+                >
+                  <ProblemCard
+                    problem={problem}
+                    index={idx}
+                    isLast={idx === result.length - 1}
+                  />
+                </div>
               ))}
 
-              <PdfDownloadButton result={result} createdAt={createdAt} />
+              <div className="pt-2">
+                <PdfDownloadButton result={result} createdAt={createdAt} />
+              </div>
             </div>
           </section>
         )}
       </main>
+
+      {/* Scanning Animation Keyframes - injected as style tag */}
+      <style jsx global>{`
+        @keyframes scanning {
+          0% {
+            transform: translateY(-100%);
+          }
+          100% {
+            transform: translateY(100%);
+          }
+        }
+
+        .scanning-animation {
+          animation: scanning 1.5s ease-in-out infinite;
+        }
+
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slide-in-from-bottom-4 {
+          from {
+            transform: translateY(16px);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-in-from-bottom-2 {
+          from {
+            transform: translateY(8px);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+
+        .animate-in {
+          animation: fade-in 0.5s ease-out, slide-in-from-bottom-4 0.5s ease-out;
+        }
+      `}</style>
     </>
   );
 }

@@ -158,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShellContext.Provider value={contextValue}>
-      <div className="min-h-dvh bg-zinc-50">
+      <div className="min-h-dvh bg-[#F2F2F7]">
         <Navbar
           onHistoryClick={() => setHistoryOpen(true)}
           onCreatorClick={() => {
