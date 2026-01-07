@@ -120,6 +120,8 @@ interface GenerateAttemptResult {
   result?: GenerateResult;
   error?: Error;
   isRateLimit?: boolean;
+  isNotFound?: boolean;
+  shouldFallback?: boolean;
 }
 
 async function tryGenerateWithModel(
@@ -161,12 +163,15 @@ async function tryGenerateWithModel(
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const isRateLimit = isRateLimitErrorMessage(err.message);
+    const isNotFound = isNotFoundErrorMessage(err.message);
+    // 404またはレートリミットの場合は次のモデルにフォールバック
+    const shouldFallback = isRateLimit || isNotFound;
 
     console.log(
-      `[Gemini API] Failed with model ${modelName}: ${err.message} (isRateLimit: ${isRateLimit})`
+      `[Gemini API] Failed with model ${modelName}: ${err.message} (isRateLimit: ${isRateLimit}, isNotFound: ${isNotFound})`
     );
 
-    return { success: false, error: err, isRateLimit };
+    return { success: false, error: err, isRateLimit, isNotFound, shouldFallback };
   }
 }
 
@@ -203,7 +208,8 @@ export async function POST(request: Request) {
     console.log(`[Gemini API] Models to try: ${modelsToTry.join(", ")}`);
 
     let lastError: Error | null = null;
-    let allRateLimited = true;
+    let allFallbackable = true;
+    let allNotFound = true;
 
     // Try each model in order
     for (const modelName of modelsToTry) {
@@ -220,24 +226,44 @@ export async function POST(request: Request) {
 
       if (result.error) {
         lastError = result.error;
-        if (!result.isRateLimit) {
-          allRateLimited = false;
+        // フォールバック不可能なエラー（パースエラーなど）がある場合
+        if (!result.shouldFallback) {
+          allFallbackable = false;
+        }
+        // 404以外のエラーがある場合
+        if (!result.isNotFound) {
+          allNotFound = false;
         }
       }
 
-      // Wait before trying next model on rate limit
-      if (result.isRateLimit) {
+      // レートリミットまたは404の場合、次のモデルを試す前に待機
+      if (result.shouldFallback) {
+        const waitReason = result.isRateLimit ? "Rate limited" : "Model not found";
         console.log(
-          `[Gemini API] Rate limited, waiting 1s before trying next model...`
+          `[Gemini API] ${waitReason}, trying next model...`
         );
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (result.isRateLimit) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
 
     // All models failed
     const message = lastError?.message || "Unknown error";
 
-    if (allRateLimited) {
+    // すべてのモデルが404の場合
+    if (allNotFound) {
+      return NextResponse.json(
+        {
+          error:
+            "すべてのモデルが利用できません。APIの設定を確認してください。",
+        },
+        { status: 404 }
+      );
+    }
+
+    // すべてのモデルでフォールバック可能なエラー（レートリミット等）の場合
+    if (allFallbackable) {
       return NextResponse.json(
         {
           error:
@@ -245,15 +271,6 @@ export async function POST(request: Request) {
             "（Googleの無料枠は1日あたりのリクエスト数に制限があります）",
         },
         { status: 429 }
-      );
-    }
-
-    if (isNotFoundErrorMessage(message)) {
-      return NextResponse.json(
-        {
-          error: `モデルが見つかりません: ${message}`,
-        },
-        { status: 404 }
       );
     }
 

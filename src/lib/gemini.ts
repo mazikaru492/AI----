@@ -6,10 +6,20 @@ import { SchemaType, type ResponseSchema } from '@google/generative-ai';
 
 /**
  * 使用可能なモデルリスト（優先順位順）
- * 注意: gemini-1.5-flashはAPI v1betaで非対応のため除外
+ *
+ * フォールバック戦略:
+ * 1. gemini-2.5-flash-lite: 最新・高速（2026年リリースモデル）
+ * 2. gemini-2.0-flash-lite: 安定版・低コスト（無料枠: 15 RPM, 1500 RPD）
+ * 3. gemma-3-27b-it: Gemmaファミリー（1日14,000件の無料枠）
+ * 4. gemini-2.0-flash: バックアップ（無料枠: 10 RPM, 1000 RPD）
+ *
+ * 注意: 各モデルでResourceExhausted/404エラーが発生した場合、次のモデルにフォールバックします
+ * SDK仕様: モデル名は「models/」プレフィックスなしで指定（SDKが自動的に追加）
  */
 export const GEMINI_MODEL_LIST = [
+  'gemini-2.5-flash-lite',
   'gemini-2.0-flash-lite',
+  'gemma-3-27b-it',
   'gemini-2.0-flash',
 ] as const;
 
