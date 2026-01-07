@@ -106,13 +106,16 @@ let cachedResolvedModel: string | null = null;
 let cachedResolvedModelAt = 0;
 const MODEL_CACHE_MS = 1000 * 60 * 60; // 1 hour
 
-function getConfiguredModelName(): string | null {
+// デフォルトのモデル名（環境変数がない場合に使用）
+const DEFAULT_MODEL = "gemini-2.0-flash";
+
+function getConfiguredModelName(): string {
   // どちらの環境変数でも指定できるようにしておく
   const raw =
     process.env.GOOGLE_GEMINI_MODEL ||
     process.env.GEMINI_MODEL ||
     process.env.GOOGLE_GENERATIVE_AI_MODEL;
-  if (!raw) return null;
+  if (!raw) return DEFAULT_MODEL;
   // RESTの name は 'models/xxx' 形式。SDK側は 'xxx' を期待することが多いので揃える。
   return raw.replace(/^models\//, "");
 }
