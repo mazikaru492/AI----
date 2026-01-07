@@ -1,35 +1,18 @@
 import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { GenerateResult } from "@/types";
 import {
-  GoogleGenerativeAI,
-  SchemaType,
-  type ResponseSchema,
-} from "@google/generative-ai";
+  GEMINI_MODEL_LIST,
+  RESPONSE_SCHEMA,
+  SYSTEM_INSTRUCTION,
+  USER_PROMPT,
+} from "@/lib/gemini";
 
 export const runtime = "nodejs";
 
-type ProblemItem = {
-  id: number;
-  original: string;
-  question: string;
-  answer: string;
-};
-
-type GenerateResult = ProblemItem[];
-
-const RESPONSE_SCHEMA: ResponseSchema = {
-  type: SchemaType.ARRAY,
-  minItems: 1,
-  items: {
-    type: SchemaType.OBJECT,
-    properties: {
-      id: { type: SchemaType.NUMBER },
-      original: { type: SchemaType.STRING },
-      question: { type: SchemaType.STRING },
-      answer: { type: SchemaType.STRING },
-    },
-    required: ["id", "original", "question", "answer"],
-  },
-};
+// =====================================
+// Helper Functions
+// =====================================
 
 function stripCodeFences(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -44,10 +27,8 @@ function extractJsonArraySubstring(text: string): string | null {
 }
 
 function parseGenerateResult(rawText: string): GenerateResult {
-  // まずは素直にJSON.parse
   const cleaned = stripCodeFences(rawText)
     .trim()
-    // ゼロ幅文字などを除去（パース失敗の原因になりやすい）
     .replace(/\uFEFF/g, "")
     .replace(/[\u200B-\u200D\u2060]/g, "");
 
@@ -70,6 +51,7 @@ function parseGenerateResult(rawText: string): GenerateResult {
           typeof item !== "object" ||
           !item ||
           typeof (item as { id?: unknown }).id !== "number" ||
+          typeof (item as { original?: unknown }).original !== "string" ||
           typeof (item as { question?: unknown }).question !== "string" ||
           typeof (item as { answer?: unknown }).answer !== "string"
         ) {
@@ -87,8 +69,22 @@ function parseGenerateResult(rawText: string): GenerateResult {
   throw new Error(message);
 }
 
+function isRateLimitErrorMessage(message: string): boolean {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("quota") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource exhausted")
+  );
+}
+
+function isNotFoundErrorMessage(message: string): boolean {
+  const msg = message.toLowerCase();
+  return msg.includes("404") || msg.includes("not found");
+}
+
 function getApiKey(): string {
-  // Vercelの環境変数名に対応（GOOGLE_GEMINI_API_KEYまたはGEMINI_API_KEY）
   const key = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error(
@@ -102,43 +98,81 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return Buffer.from(buffer).toString("base64");
 }
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
-
-function getModelName(): string {
+function getModelsToTry(): string[] {
   const envModel =
     process.env.GOOGLE_GEMINI_MODEL ||
     process.env.GEMINI_MODEL ||
     process.env.GOOGLE_GENERATIVE_AI_MODEL;
 
   if (envModel) {
-    return envModel.replace(/^models\//, "");
+    const cleaned = envModel.replace(/^models\//, "");
+    return [cleaned, ...GEMINI_MODEL_LIST.filter((m) => m !== cleaned)];
   }
-  return DEFAULT_MODEL;
+  return [...GEMINI_MODEL_LIST];
 }
 
-const SYSTEM_INSTRUCTION = `あなたは塾講師を助ける数学の出題支援AIです。
+// =====================================
+// Model Generation
+// =====================================
 
-重要: 推論過程は出力せず、最終的にJSONのみを返してください。
+interface GenerateAttemptResult {
+  success: boolean;
+  result?: GenerateResult;
+  error?: Error;
+  isRateLimit?: boolean;
+}
 
-目的: 入力画像に含まれるすべての数学問題を特定し、それらすべてに対して数値を変えた類題を作成してください。
+async function tryGenerateWithModel(
+  genAI: GoogleGenerativeAI,
+  modelName: string,
+  base64: string,
+  mimeType: string
+): Promise<GenerateAttemptResult> {
+  try {
+    console.log(`[Gemini API] Trying model: ${modelName}`);
 
-ワークフロー:
-1. 画像内のすべての問題を上から下、左から右の順に特定する
-2. 各問題について、数値のみを変更した類題を作成する
-3. 答えが「きれいな整数」または「簡単な分数」になるよう調整する
-4. 各問題の解答も記載する
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: SYSTEM_INSTRUCTION,
+    });
 
-出力形式（厳守）:
-[
-  { "id": 1, "original": "元の問題文", "question": "作成した類題", "answer": "類題の解答" },
-  { "id": 2, "original": "元の問題文", "question": "作成した類題", "answer": "類題の解答" }
-]
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { data: base64, mimeType } },
+            { text: USER_PROMPT },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+        temperature: 0.2,
+      },
+    });
 
-注意:
-- 問題の順番は画像の上から下、左から右の順を厳守
-- id は 1 から順に採番
-- 画像に問題が1つしかない場合も配列で返す
-`;
+    const text = result.response.text();
+    const json = parseGenerateResult(text);
+
+    console.log(`[Gemini API] Success with model: ${modelName}`);
+    return { success: true, result: json };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const isRateLimit = isRateLimitErrorMessage(err.message);
+
+    console.log(
+      `[Gemini API] Failed with model ${modelName}: ${err.message} (isRateLimit: ${isRateLimit})`
+    );
+
+    return { success: false, error: err, isRateLimit };
+  }
+}
+
+// =====================================
+// Route Handler
+// =====================================
 
 export async function POST(request: Request) {
   try {
@@ -162,100 +196,71 @@ export async function POST(request: Request) {
     const imageBytes = await file.arrayBuffer();
     const base64 = arrayBufferToBase64(imageBytes);
 
-    // Gemini API初期化
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const MODEL_NAME = getModelName();
-    console.log(`[Gemini API] Using model: ${MODEL_NAME}`);
+    const modelsToTry = getModelsToTry();
+    console.log(`[Gemini API] Models to try: ${modelsToTry.join(", ")}`);
 
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction: SYSTEM_INSTRUCTION,
-    });
+    let lastError: Error | null = null;
+    let allRateLimited = true;
 
-    const userPrompt =
-      "次の画像を解析し、上記の内部ワークフローに従ってJSONを生成してください。" +
-      "重要: 出力は必ず '[' から始まるJSON配列のみ。説明文・Markdown・```json などのコードフェンスは禁止。";
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { data: base64, mimeType: file.type } },
-            { text: userPrompt },
-          ],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-        temperature: 0.2,
-      },
-    });
-
-    const text = result.response.text();
-
-    let json: GenerateResult;
-    try {
-      json = parseGenerateResult(text);
-    } catch (e) {
-      const parseError = e instanceof Error ? e.message : "Parse failed";
-      const rawPreview = String(text).slice(0, 2000);
-      return NextResponse.json(
-        {
-          error: "model did not return valid JSON",
-          details: parseError,
-          rawPreview,
-        },
-        { status: 502 }
+    // Try each model in order
+    for (const modelName of modelsToTry) {
+      const result = await tryGenerateWithModel(
+        genAI,
+        modelName,
+        base64,
+        file.type
       );
+
+      if (result.success && result.result) {
+        return NextResponse.json(result.result);
+      }
+
+      if (result.error) {
+        lastError = result.error;
+        if (!result.isRateLimit) {
+          allRateLimited = false;
+        }
+      }
+
+      // Wait before trying next model on rate limit
+      if (result.isRateLimit) {
+        console.log(
+          `[Gemini API] Rate limited, waiting 1s before trying next model...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
-    return NextResponse.json(json);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    // All models failed
+    const message = lastError?.message || "Unknown error";
 
-    // 詳細なエラーログを出力
-    console.error("[Gemini API Error] Full error:", error);
-    console.error("[Gemini API Error] Error message:", message);
-    if (error instanceof Error && error.stack) {
-      console.error("[Gemini API Error] Stack trace:", error.stack);
-    }
-
-    // 429 レート制限エラーの検知
-    if (
-      message.includes("429") ||
-      message.toLowerCase().includes("quota") ||
-      message.toLowerCase().includes("rate limit")
-    ) {
+    if (allRateLimited) {
       return NextResponse.json(
         {
           error:
-            "利用制限に達しました。1分ほど間隔を空けてから再度お試しください。",
+            "すべてのモデルで利用制限に達しました。しばらく時間を空けてから再度お試しください。" +
+            "（Googleの無料枠は1日あたりのリクエスト数に制限があります）",
         },
         { status: 429 }
       );
     }
 
-    // 404エラー（モデルが見つからない）の検知
-    if (
-      message.includes("404") ||
-      message.toLowerCase().includes("not found")
-    ) {
-      console.error("[Gemini API Error] Model not found error detected");
+    if (isNotFoundErrorMessage(message)) {
       return NextResponse.json(
         {
-          error:
-            `モデルが見つかりません: ${message}. ` +
-            "環境変数でモデルを上書きする場合は GEMINI_MODEL（例: gemini-2.0-flash 等）を設定してください。" +
-            "（サーバーログに Supported models を出力しています）",
+          error: `モデルが見つかりません: ${message}`,
         },
         { status: 404 }
       );
     }
 
+    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[Gemini API Error]", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
