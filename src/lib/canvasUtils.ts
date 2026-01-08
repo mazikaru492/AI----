@@ -3,25 +3,7 @@
  * Precision Masking - 正確なマスキングと背景色検出
  */
 
-/**
- * バウンディングボックス（ピクセル座標）
- */
-export interface BoundingBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * 数値置換情報
- */
-export interface NumberReplacement {
-  original: string;
-  replacement: string;
-  bbox: BoundingBox;
-  confidence?: number;
-}
+import type { BoundingBox, NumberReplacement } from '@/types';
 
 /**
  * RGB色のルミナンス（明るさ）を計算
@@ -111,11 +93,6 @@ function calculateFontSize(boxHeight: number): number {
 
 /**
  * Canvas上で数値を精密に置換（Precision Masking）
- *
- * 修正点:
- * 1. padding = 0 で厳密にbboxのみをマスク（隣接文字を侵さない）
- * 2. 「最輝ピクセル」ルールで背景色を検出（灰色防止）
- * 3. 完璧な中央配置で新しい数値を描画
  */
 export function replaceNumbersOnCanvas(
   ctx: CanvasRenderingContext2D,
@@ -129,10 +106,11 @@ export function replaceNumbersOnCanvas(
   const {
     fontFamily = 'sans-serif',
     fontColor = '#000000',
-    padding = 0, // デフォルト0: 精密マスキング
+    padding = 0,
   } = options;
 
   for (const { bbox, replacement: newText } of replacements) {
+    if (!bbox) continue;
     const { x, y, width, height } = bbox;
 
     // 1. 背景色を「最輝ピクセル」ルールでサンプリング
@@ -141,7 +119,7 @@ export function replaceNumbersOnCanvas(
     // 2. 元の数値を消去（厳密にbbox内のみ）
     ctx.fillStyle = bgColor;
     ctx.fillRect(
-      x + padding, // padding=0 または負の値で内側に
+      x + padding,
       y + padding,
       width - padding * 2,
       height - padding * 2
@@ -232,3 +210,6 @@ export function scaleBbox(bbox: BoundingBox, scale: number): BoundingBox {
     height: bbox.height * scale,
   };
 }
+
+// Re-export types for backward compatibility
+export type { BoundingBox, NumberReplacement } from '@/types';

@@ -3,10 +3,7 @@
  * 問題タイプに応じた真のランダム数値を生成
  */
 
-export interface NumberReplacement {
-  original: string;
-  replacement: string;
-}
+import type { NumberReplacement } from '@/types';
 
 /**
  * 数値の桁数に応じたランダム数値を生成
@@ -24,39 +21,6 @@ export function generateRandomNumber(original: string): string {
   const min = Math.pow(10, digits - 1);
   const max = Math.pow(10, digits) - 1;
   return String(Math.floor(Math.random() * (max - min + 1)) + min);
-}
-
-/**
- * 複数の数値を一括でランダム変換（グループ化あり）
- * @deprecated Use generateUniqueRandomReplacements for unique per-detection randomization
- */
-export function generateRandomReplacements(
-  numbers: string[]
-): NumberReplacement[] {
-  // 同じ値には同じ置換を適用するためのマップ
-  const replacementMap = new Map<string, string>();
-
-  return numbers.map((original) => {
-    // 既に変換済みの数値は同じ値を使用
-    if (replacementMap.has(original)) {
-      return {
-        original,
-        replacement: replacementMap.get(original)!,
-      };
-    }
-
-    // 新しい数値を生成（元の数値と異なる値を保証）
-    let replacement: string;
-    let attempts = 0;
-    do {
-      replacement = generateRandomNumber(original);
-      attempts++;
-    } while (replacement === original && attempts < 10);
-
-    replacementMap.set(original, replacement);
-
-    return { original, replacement };
-  });
 }
 
 /**

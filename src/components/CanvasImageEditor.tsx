@@ -2,13 +2,11 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Download, RefreshCw, Wand2, Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
-import Tesseract from 'tesseract.js';
+import type { BoundingBox, NumberReplacement } from '@/types';
 import {
   replaceNumbersOnCanvas,
   drawImageToCanvas,
   canvasToBlob,
-  type NumberReplacement,
-  type BoundingBox,
 } from '@/lib/canvasUtils';
 import { generateUniqueRandomReplacements } from '@/lib/numberGenerator';
 
@@ -48,7 +46,7 @@ interface VerificationResult {
 const MAX_RETRY_ATTEMPTS = 3;
 
 /**
- * Canvas画像エディタ with Tesseract.js クライアントサイドOCR + AI検証ループ
+ * Canvas画像エディタ - Gemini APIによる数値検出 + AI検証ループ
  */
 export function CanvasImageEditor({
   imageFile,
@@ -65,7 +63,6 @@ export function CanvasImageEditor({
   const [replacements, setReplacements] = useState<NumberReplacement[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
-  const [ocrProgress, setOcrProgress] = useState<number>(0);
 
   // 画像をCanvasに読み込み
   const loadImage = useCallback(async (): Promise<{ width: number; height: number }> => {
@@ -88,179 +85,64 @@ export function CanvasImageEditor({
   }, [imageFile]);
 
   /**
-   * Tesseract.js でクライアントサイドOCRを実行
-   * 数値（0-9）のみをフィルタリングして抽出
+   * Gemini APIで数値を検出
    */
-  const detectWithTesseract = useCallback(async () => {
+  const detectWithGemini = useCallback(async () => {
     setState('loading-detect');
     setError(null);
-    setStatusMessage('Tesseract OCRで数値を検出中...');
-    setOcrProgress(0);
+    setStatusMessage('Gemini AIで数値を検出中...');
 
     try {
-      await loadImage();
+      const dimensions = await loadImage();
 
       if (!canvasRef.current) throw new Error('Canvas not ready');
 
-      console.log('[OCR] Starting Tesseract recognition...');
+      // CanvasをBase64に変換
+      const dataUrl = canvasRef.current.toDataURL('image/png');
+      const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
 
-      // Tesseract.js v5+ API: createWorkerを使用
-      const worker = await Tesseract.createWorker('eng', undefined, {
-        logger: (m) => {
-          console.log('[OCR] Status:', m.status, m.progress);
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(m.progress * 100));
-            setStatusMessage(`認識中... ${Math.round(m.progress * 100)}%`);
-          } else if (m.status === 'loading language traineddata') {
-            setStatusMessage('言語データをロード中...');
-          }
-        },
+      console.log('[Detect] Calling Gemini API...');
+
+      const response = await fetch('/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType: 'image/png',
+          imageWidth: dimensions.width,
+          imageHeight: dimensions.height,
+        }),
       });
 
-      // ホワイトリストは削除: シンボルレベルでフィルタリングするため
-      // 日本語や変数（x, y）も認識し、数字のみをシンボルレベルで抽出
-
-      // blocks: true で単語レベルのbbox情報を取得
-      const result = await worker.recognize(canvasRef.current, {}, { blocks: true });
-
-      // ワーカーを終了
-      await worker.terminate();
-
-      console.log('[OCR] Recognition complete');
-      console.log('[OCR] Full text:', result.data.text);
-
-      // 検出された単語から数値のみを抽出
-      const numbers: DetectedNumber[] = [];
-
-      // Tesseract.js v7 の結果構造を安全にアクセス
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = result.data as any;
-
-
-
-      // words配列から抽出（まずフラットなwords配列を試す）
-      let words: Array<{ text: string; bbox?: { x0: number; y0: number; x1: number; y1: number } }> = [];
-
-      if (data.words && Array.isArray(data.words) && data.words.length > 0) {
-        words = data.words;
-        console.log('[OCR] Using flat words array:', words.length, 'words');
-      } else if (data.blocks && Array.isArray(data.blocks)) {
-        // blocks -> paragraphs -> lines -> words の階層構造から取得
-        console.log('[OCR] Using blocks structure...');
-        for (const block of data.blocks) {
-          if (block.paragraphs) {
-            for (const paragraph of block.paragraphs) {
-              if (paragraph.lines) {
-                for (const line of paragraph.lines) {
-                  if (line.words) {
-                    words.push(...line.words);
-                  }
-                }
-              }
-            }
-          }
-        }
-        console.log('[OCR] Extracted', words.length, 'words from blocks');
-      } else if (data.paragraphs) {
-        // paragraphs -> lines -> words の階層構造から取得
-        console.log('[OCR] Using paragraphs structure...');
-        for (const paragraph of data.paragraphs) {
-          if (paragraph.lines) {
-            for (const line of paragraph.lines) {
-              if (line.words) {
-                words.push(...line.words);
-              }
-            }
-          }
-        }
-        console.log('[OCR] Extracted', words.length, 'words from paragraphs');
+      if (!response.ok) {
+        const data = await response.json() as { error?: string };
+        throw new Error(data.error || '検出に失敗しました');
       }
 
-      // シンボルレベルで数値を抽出（Pixel-Perfect In-Place Replacement）
-      const MIN_CONFIDENCE = 70; // 最小信頼度 70%
+      const result = await response.json() as { numbers: DetectedNumber[]; success: boolean };
 
-      for (const word of words) {
-        const wordText = word.text || '';
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wordConfidence = (word as any).confidence || 0;
-
-        console.log('[OCR] Word found:', wordText, 'bbox:', word.bbox, 'confidence:', wordConfidence);
-
-        // 信頼度チェック: 低信頼度の検出はスキップ
-        if (wordConfidence < MIN_CONFIDENCE) {
-          console.log('[OCR] Skipping low confidence word:', wordText, `(${wordConfidence}%)`);
-          continue;
-        }
-
-        // シンボルレベル処理: word.symbols[] 配列を使用
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const symbols = (word as any).symbols || [];
-
-        if (symbols.length === 0) {
-          // フォールバック: symbolsがない場合は従来のword-levelロジック
-          if (/^\d+$/.test(wordText) && word.bbox) {
-            const { x0, y0, x1, y1 } = word.bbox;
-            numbers.push({
-              text: wordText,
-              bbox: {
-                x: x0,
-                y: y0,
-                width: x1 - x0,
-                height: y1 - y0,
-              },
-            });
-            console.log('[OCR] Number detected (word-level fallback):', wordText, 'at', { x0, y0, x1, y1 }, `confidence: ${wordConfidence}%`);
-          }
-        } else {
-          // シンボルレベルで個別に処理（"2x" → "2" と "x" を分離）
-          for (const symbol of symbols) {
-            const symbolText = symbol.text || '';
-            const symbolConfidence = symbol.confidence || 0;
-
-            console.log('[OCR]   Symbol:', symbolText, 'bbox:', symbol.bbox, 'confidence:', symbolConfidence);
-
-            // 厳格な数字チェック: 単一の数字のみ（0-9）
-            if (/^[0-9]$/.test(symbolText) && symbol.bbox && symbolConfidence >= MIN_CONFIDENCE) {
-              const { x0, y0, x1, y1 } = symbol.bbox;
-              numbers.push({
-                text: symbolText,
-                bbox: {
-                  x: x0,
-                  y: y0,
-                  width: x1 - x0,
-                  height: y1 - y0,
-                },
-              });
-              console.log('[OCR]   ✓ Number symbol detected:', symbolText, 'at', { x0, y0, x1, y1 }, `confidence: ${symbolConfidence}%`);
-            } else if (symbolText && !(/^[0-9]$/.test(symbolText))) {
-              console.log('[OCR]   ✗ Non-numeric symbol ignored:', symbolText);
-            }
-          }
-        }
-      }
-
-      // フォールバック：全文テキストから数値を抽出（座標は推定）
-      if (numbers.length === 0 && data.text) {
-        console.log('[OCR] Fallback: extracting numbers from full text...');
-        const fullTextMatches = data.text.match(/\d+/g);
-        if (fullTextMatches) {
-          console.log('[OCR] Found', fullTextMatches.length, 'numbers in full text (no coordinates)');
-          // 座標がないため、ユーザーに警告
-        }
-      }
-
-      if (numbers.length === 0) {
+      if (!result.success || result.numbers.length === 0) {
         throw new Error('数値が検出されませんでした。画像を確認してください。');
       }
 
-      console.log('[OCR] Total numbers found:', numbers.length);
-      setDetectedNumbers(numbers);
+      // スケールを適用してCanvas座標に変換
+      const scaledNumbers = result.numbers.map((n) => ({
+        text: n.text,
+        bbox: {
+          x: n.bbox.x * scaleRef.current,
+          y: n.bbox.y * scaleRef.current,
+          width: n.bbox.width * scaleRef.current,
+          height: n.bbox.height * scaleRef.current,
+        },
+      }));
+
+      console.log('[Detect] Found:', scaledNumbers.length, 'numbers');
+      setDetectedNumbers(scaledNumbers);
       setState('detect-complete');
       setStatusMessage('');
-      setOcrProgress(100);
     } catch (e) {
-      console.error('[OCR] Error:', e);
-      setError(e instanceof Error ? e.message : 'OCR検出エラー');
+      console.error('[Detect] Error:', e);
+      setError(e instanceof Error ? e.message : '検出エラー');
       setState('error');
       setStatusMessage('');
     }
@@ -313,7 +195,6 @@ export function CanvasImageEditor({
     setError(null);
 
     try {
-      // 各検出を独立して処理（グループ化なし - ユニーク乱数生成）
       const allTexts = detectedNumbers.map((n) => n.text);
 
       let attempts = 0;
@@ -324,20 +205,16 @@ export function CanvasImageEditor({
         attempts++;
         setVerificationStatus(`試行 ${attempts}/${MAX_RETRY_ATTEMPTS}: 数値を生成中...`);
 
-        // 各バウンディングボックスごとに独立したユニーク乱数を生成
         const randomReplacements = generateUniqueRandomReplacements(allTexts);
 
-        // ピクセル座標と置換数値を紐付け（インデックスベースで1:1対応）
         currentReplacements = detectedNumbers.map((detected, index) => ({
           original: detected.text,
           replacement: randomReplacements[index]?.replacement || detected.text,
           bbox: detected.bbox,
         }));
 
-        // Canvasに描画
         drawReplacementsOnCanvas(currentReplacements);
 
-        // AI検証
         setState('verifying');
         setVerificationStatus(`試行 ${attempts}/${MAX_RETRY_ATTEMPTS}: AIが検証中...`);
 
@@ -385,7 +262,7 @@ export function CanvasImageEditor({
       a.download = `edited_${imageFile.name.replace(/\.[^/.]+$/, '')}.png`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       setError('ダウンロードに失敗しました');
     }
   }, [imageFile.name]);
@@ -400,10 +277,10 @@ export function CanvasImageEditor({
     setState('detect-complete');
   }, []);
 
-  // 初回ロード時にTesseract OCRを実行
+  // 初回ロード時にGemini APIで検出を実行
   useEffect(() => {
-    detectWithTesseract();
-  }, [detectWithTesseract]);
+    detectWithGemini();
+  }, [detectWithGemini]);
 
   return (
     <div className="space-y-4">
@@ -428,26 +305,13 @@ export function CanvasImageEditor({
             <Loader2 className="h-8 w-8 animate-spin text-[#007AFF]" />
             <p className="mt-2 text-sm text-slate-700 font-medium">
               {state === 'loading-detect'
-                ? 'Tesseract OCRで数値を検出中...'
+                ? 'Gemini AIで数値を検出中...'
                 : state === 'verifying'
                   ? 'AI検証中...'
                   : '類題を生成中...'}
             </p>
             {(statusMessage || verificationStatus) && (
               <p className="mt-1 text-xs text-slate-500">{statusMessage || verificationStatus}</p>
-            )}
-
-            {/* OCR Progress Bar */}
-            {state === 'loading-detect' && ocrProgress > 0 && (
-              <div className="mt-3 w-48">
-                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#007AFF] transition-all duration-300 ease-out"
-                    style={{ width: `${ocrProgress}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-center text-slate-500">{ocrProgress}%</p>
-              </div>
             )}
           </div>
         )}
@@ -479,7 +343,7 @@ export function CanvasImageEditor({
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-blue-600" />
             <p className="text-sm font-medium text-blue-900">
-              Tesseract OCRで {detectedNumbers.length}個の数値を検出しました
+              Gemini AIで {detectedNumbers.length}個の数値を検出しました
             </p>
           </div>
           <p className="mt-1 text-xs text-blue-700">
@@ -558,7 +422,7 @@ export function CanvasImageEditor({
         {state === 'error' && (
           <button
             type="button"
-            onClick={detectWithTesseract}
+            onClick={detectWithGemini}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-200"
           >
             <RefreshCw className="h-4 w-4" />
