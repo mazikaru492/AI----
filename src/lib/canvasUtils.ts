@@ -1,97 +1,89 @@
 /**
  * Canvas操作ユーティリティ
- * 画像上の数値を置換するための描画機能
+ * Natural Blend - 自然な見た目の数値置換
  */
 
+/**
+ * バウンディングボックス（ピクセル座標）
+ */
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * 数値置換情報
+ */
 export interface NumberReplacement {
   original: string;
   replacement: string;
-  bbox: {
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  };
+  bbox: BoundingBox;
 }
 
 /**
- * バウンディングボックス周囲のピクセル色を平均化して取得
- * @param ctx - Canvas 2D コンテキスト
- * @param bbox - 対象のバウンディングボックス
- * @param margin - 外側にサンプリングするマージン（デフォルト: 2px）
- * @returns 平均RGB色の文字列（例: 'rgb(255, 250, 245)'）
+ * 近隣ピクセルの色をサンプリング（適応型背景取得）
+ * ボックスの左上外側から背景色を推定
  */
-function sampleSurroundingColor(
+function sampleBackgroundColor(
   ctx: CanvasRenderingContext2D,
-  bbox: NumberReplacement['bbox'],
-  margin: number = 2
+  bbox: BoundingBox
 ): string {
   const canvas = ctx.canvas;
-  const { x0, y0, x1, y1 } = bbox;
 
-  // サンプリング領域の座標を計算（キャンバス境界内にクランプ）
-  const sampleX0 = Math.max(0, Math.floor(x0) - margin);
-  const sampleY0 = Math.max(0, Math.floor(y0) - margin);
-  const sampleX1 = Math.min(canvas.width, Math.ceil(x1) + margin);
-  const sampleY1 = Math.min(canvas.height, Math.ceil(y1) + margin);
+  // サンプル位置: ボックスの左上外側 (x-3, y-3) から 5x5 領域
+  const sampleX = Math.max(0, Math.floor(bbox.x) - 3);
+  const sampleY = Math.max(0, Math.floor(bbox.y) - 3);
+  const sampleSize = 5;
 
-  const width = sampleX1 - sampleX0;
-  const height = sampleY1 - sampleY0;
+  // キャンバス境界チェック
+  const safeWidth = Math.min(sampleSize, canvas.width - sampleX);
+  const safeHeight = Math.min(sampleSize, canvas.height - sampleY);
 
-  if (width <= 0 || height <= 0) {
-    return '#FFFFFF'; // フォールバック
+  if (safeWidth <= 0 || safeHeight <= 0) {
+    return '#FFFFFF';
   }
 
-  // 周囲の領域からピクセルデータを取得
-  const imageData = ctx.getImageData(sampleX0, sampleY0, width, height);
-  const data = imageData.data;
+  try {
+    const imageData = ctx.getImageData(sampleX, sampleY, safeWidth, safeHeight);
+    const data = imageData.data;
 
-  let totalR = 0, totalG = 0, totalB = 0;
-  let count = 0;
+    let totalR = 0, totalG = 0, totalB = 0;
+    const pixelCount = safeWidth * safeHeight;
 
-  // バウンディングボックス内部を除外して周囲のピクセルのみサンプリング
-  const innerX0 = Math.floor(x0) - sampleX0;
-  const innerY0 = Math.floor(y0) - sampleY0;
-  const innerX1 = Math.ceil(x1) - sampleX0;
-  const innerY1 = Math.ceil(y1) - sampleY0;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      // ボックス内部はスキップ
-      if (x >= innerX0 && x < innerX1 && y >= innerY0 && y < innerY1) {
-        continue;
-      }
-
-      const i = (y * width + x) * 4;
+    for (let i = 0; i < data.length; i += 4) {
       totalR += data[i];
       totalG += data[i + 1];
       totalB += data[i + 2];
-      count++;
     }
+
+    const avgR = Math.round(totalR / pixelCount);
+    const avgG = Math.round(totalG / pixelCount);
+    const avgB = Math.round(totalB / pixelCount);
+
+    return `rgb(${avgR}, ${avgG}, ${avgB})`;
+  } catch {
+    return '#FFFFFF';
   }
-
-  if (count === 0) {
-    return '#FFFFFF'; // フォールバック
-  }
-
-  const avgR = Math.round(totalR / count);
-  const avgG = Math.round(totalG / count);
-  const avgB = Math.round(totalB / count);
-
-  return `rgb(${avgR}, ${avgG}, ${avgB})`;
 }
 
 /**
- * フォントサイズを座標から推定
+ * フォントサイズを計算（ボックス高さベース）
  */
-function estimateFontSize(bbox: NumberReplacement['bbox']): number {
-  const height = bbox.y1 - bbox.y0;
-  // 高さを基準にフォントサイズを推定（やや小さめに）
-  return Math.max(12, Math.floor(height * 0.85));
+function calculateFontSize(boxHeight: number): number {
+  // 高さの85%をフォントサイズとして使用
+  const fontSize = Math.floor(boxHeight * 0.85);
+  return Math.max(10, Math.min(64, fontSize));
 }
 
 /**
- * Canvas上で数値を置換
+ * Canvas上で数値を自然に置換（Natural Blend）
+ *
+ * 処理フロー:
+ * 1. 近隣ピクセルから背景色をサンプリング
+ * 2. パディング付きで元の数値を消去
+ * 3. 完璧な中央配置で新しい数値を描画
  */
 export function replaceNumbersOnCanvas(
   ctx: CanvasRenderingContext2D,
@@ -99,46 +91,43 @@ export function replaceNumbersOnCanvas(
   options: {
     fontFamily?: string;
     fontColor?: string;
-    maskColor?: string;
     padding?: number;
   } = {}
 ): void {
   const {
-    fontFamily = 'Arial, sans-serif',
+    fontFamily = 'sans-serif',
     fontColor = '#000000',
-    maskColor = '#FFFFFF',
     padding = 2,
   } = options;
 
-  for (const replacement of replacements) {
-    const { bbox, replacement: newText } = replacement;
+  for (const { bbox, replacement: newText } of replacements) {
+    const { x, y, width, height } = bbox;
 
-    // 1. 周囲のピクセル色をサンプリングして適応型マスク色を取得
-    const adaptiveMaskColor = sampleSurroundingColor(ctx, bbox);
+    // 1. 背景色をサンプリング（適応型マスキング）
+    const bgColor = sampleBackgroundColor(ctx, bbox);
 
-    // 2. 元の数値をマスク（周囲の色で塗りつぶし）
-    ctx.fillStyle = adaptiveMaskColor;
+    // 2. 元の数値を消去（背景色で塗りつぶし）
+    ctx.fillStyle = bgColor;
     ctx.fillRect(
-      bbox.x0 - padding,
-      bbox.y0 - padding,
-      bbox.x1 - bbox.x0 + padding * 2,
-      bbox.y1 - bbox.y0 + padding * 2
+      x - padding,
+      y - padding,
+      width + padding * 2,
+      height + padding * 2
     );
 
-    // 2. 新しい数値を描画
-    const fontSize = estimateFontSize(bbox);
+    // 3. 新しい数値を描画
+    const fontSize = calculateFontSize(height);
     ctx.font = `${fontSize}px ${fontFamily}`;
     ctx.fillStyle = fontColor;
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'left';
 
-    // 中央に配置するための調整
-    const textMetrics = ctx.measureText(newText);
-    const textWidth = textMetrics.width;
-    const bboxWidth = bbox.x1 - bbox.x0;
-    const xOffset = (bboxWidth - textWidth) / 2;
+    // 完璧な中央配置
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-    ctx.fillText(newText, bbox.x0 + xOffset, bbox.y0);
+    // ボックスの正確な中央に描画
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    ctx.fillText(newText, centerX, centerY);
   }
 }
 
@@ -158,7 +147,6 @@ export function drawImageToCanvas(
   let height = image.naturalHeight;
   let scale = 1;
 
-  // リサイズが必要な場合
   if (maxWidth && width > maxWidth) {
     scale = maxWidth / width;
     width = maxWidth;
@@ -202,16 +190,13 @@ export function canvasToBlob(
 }
 
 /**
- * 座標をスケールに合わせて変換
+ * バウンディングボックスをスケール
  */
-export function scaleBbox(
-  bbox: NumberReplacement['bbox'],
-  scale: number
-): NumberReplacement['bbox'] {
+export function scaleBbox(bbox: BoundingBox, scale: number): BoundingBox {
   return {
-    x0: bbox.x0 * scale,
-    y0: bbox.y0 * scale,
-    x1: bbox.x1 * scale,
-    y1: bbox.y1 * scale,
+    x: bbox.x * scale,
+    y: bbox.y * scale,
+    width: bbox.width * scale,
+    height: bbox.height * scale,
   };
 }

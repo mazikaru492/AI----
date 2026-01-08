@@ -11,6 +11,7 @@ import { ProblemCard } from '@/components/ProblemCard';
 import { compressImage } from '@/lib/imageCompression';
 import { formatNow, generateId } from '@/lib/utils';
 import { RATE_LIMIT_WAIT_SECONDS } from '@/lib/gemini';
+import { AdBanner } from '@/components/ads/AdBanner';
 
 const PdfDownloadButton = dynamic(
   () =>
@@ -266,6 +267,13 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {/* Ad Banner - Conditionally rendered */}
+        <AdBanner
+          slot="main-page-middle"
+          position="middle"
+          enabled={false} // 広告を有効にするにはtrueに変更
+        />
 
         {/* Canvas Image Editor - Glassmorphism Card */}
         {imageFile && (

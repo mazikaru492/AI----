@@ -6,9 +6,11 @@ import {
   replaceNumbersOnCanvas,
   drawImageToCanvas,
   canvasToBlob,
+  scaleBbox,
   type NumberReplacement,
+  type BoundingBox,
 } from '@/lib/canvasUtils';
-import { generateRandomReplacements } from '@/lib/numberGenerator';
+import { generateUniqueRandomReplacements } from '@/lib/numberGenerator';
 
 interface CanvasImageEditorProps {
   imageFile: File;
@@ -24,15 +26,13 @@ type EditorState =
   | 'complete'
   | 'error';
 
+/**
+ * APIから返される検出数値情報
+ * bbox: ピクセル座標 (x, y, width, height)
+ */
 interface DetectedNumber {
   text: string;
-  bbox: {
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  };
-  confidence: number;
+  bbox: BoundingBox;
 }
 
 interface VerificationResult {
@@ -132,15 +132,10 @@ export function CanvasImageEditor({
         throw new Error('数値が検出されませんでした。画像を確認してください。');
       }
 
-      // 座標をスケールに合わせて変換
-      const scaledNumbers = result.numbers.map((n) => ({
+      // ピクセル座標をスケールに合わせて変換
+      const scaledNumbers = result.numbers.map((n: DetectedNumber) => ({
         ...n,
-        bbox: {
-          x0: n.bbox.x0 * scaleRef.current,
-          y0: n.bbox.y0 * scaleRef.current,
-          x1: n.bbox.x1 * scaleRef.current,
-          y1: n.bbox.y1 * scaleRef.current,
-        },
+        bbox: scaleBbox(n.bbox, scaleRef.current),
       }));
 
       setDetectedNumbers(scaledNumbers);
@@ -200,7 +195,8 @@ export function CanvasImageEditor({
     setError(null);
 
     try {
-      const uniqueNumbers = [...new Set(detectedNumbers.map((n) => n.text))];
+      // 各検出を独立して処理（グループ化なし - ユニーク乱数生成）
+      const allTexts = detectedNumbers.map((n) => n.text);
 
       let attempts = 0;
       let isValid = false;
@@ -210,18 +206,15 @@ export function CanvasImageEditor({
         attempts++;
         setVerificationStatus(`試行 ${attempts}/${MAX_RETRY_ATTEMPTS}: 数値を生成中...`);
 
-        // ランダム数値を生成
-        const randomReplacements = generateRandomReplacements(uniqueNumbers);
+        // 各バウンディングボックスごとに独立したユニーク乱数を生成
+        const randomReplacements = generateUniqueRandomReplacements(allTexts);
 
-        // 座標と置換数値を紐付け
-        currentReplacements = detectedNumbers.map((detected) => {
-          const match = randomReplacements.find((r) => r.original === detected.text);
-          return {
-            original: detected.text,
-            replacement: match?.replacement || detected.text,
-            bbox: detected.bbox,
-          };
-        });
+        // ピクセル座標と置換数値を紐付け（インデックスベースで1:1対応）
+        currentReplacements = detectedNumbers.map((detected, index) => ({
+          original: detected.text,
+          replacement: randomReplacements[index]?.replacement || detected.text,
+          bbox: detected.bbox,
+        }));
 
         // Canvasに描画
         drawReplacementsOnCanvas(currentReplacements);

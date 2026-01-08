@@ -27,7 +27,8 @@ export function generateRandomNumber(original: string): string {
 }
 
 /**
- * 複数の数値を一括でランダム変換
+ * 複数の数値を一括でランダム変換（グループ化あり）
+ * @deprecated Use generateUniqueRandomReplacements for unique per-detection randomization
  */
 export function generateRandomReplacements(
   numbers: string[]
@@ -54,6 +55,34 @@ export function generateRandomReplacements(
 
     replacementMap.set(original, replacement);
 
+    return { original, replacement };
+  });
+}
+
+/**
+ * 各検出を独立してユニークなランダム数値に変換
+ * 同じ数字（例: "2"が3回）でも全て異なる値に変換される
+ */
+export function generateUniqueRandomReplacements(
+  numbers: string[]
+): NumberReplacement[] {
+  const usedReplacements = new Set<string>();
+
+  return numbers.map((original) => {
+    let replacement: string;
+    let attempts = 0;
+    const maxAttempts = 50;
+
+    // 元の数値と異なり、かつ未使用の値を生成
+    do {
+      replacement = generateRandomNumber(original);
+      attempts++;
+    } while (
+      (replacement === original || usedReplacements.has(replacement)) &&
+      attempts < maxAttempts
+    );
+
+    usedReplacements.add(replacement);
     return { original, replacement };
   });
 }

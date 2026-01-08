@@ -11,15 +11,17 @@ interface DetectRequest {
   imageHeight: number;
 }
 
+/**
+ * 検出された数値（ピクセル座標付き）
+ */
 interface DetectedNumber {
   text: string;
   bbox: {
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
   };
-  confidence: number;
 }
 
 interface DetectResult {
@@ -35,43 +37,46 @@ function getApiKey(): string {
   return key;
 }
 
-const DETECTION_PROMPT = `# Task
-あなたは画像内の数値を検出するAIです。この数学問題画像から全ての数値を検出し、その位置（バウンディングボックス座標）を返してください。
+/**
+ * Pure Coordinate Scanner プロンプト
+ * シンプル・高精度・座標のみ
+ */
+const DETECTION_PROMPT = `You are a Pure Coordinate Scanner.
 
-# Instructions
-1. 画像内の全ての数値（整数、小数）を見つける
-2. 各数値の位置を画像のピクセル座標で推定
-3. 座標は画像の左上を(0,0)として推定
+TASK: Find every numeric digit (0-9) in this image and return its exact bounding box.
 
-# Output Format (JSON only, no markdown)
+RULES:
+- ONLY detect digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+- IGNORE all letters (x, y, a, b, A-Z), symbols (+, -, =, etc.), and problem markers (①②③)
+- Each detection should be TIGHT around the digit pixels
+- Multi-digit numbers (e.g., "12") should be detected as ONE box containing all digits
+
+OUTPUT FORMAT (raw JSON only, no markdown):
 {
   "numbers": [
-    {
-      "text": "検出した数値の文字列",
-      "bbox": {
-        "x0": "左端のX座標（0-1の比率）",
-        "y0": "上端のY座標（0-1の比率）",
-        "x1": "右端のX座標（0-1の比率）",
-        "y1": "下端のY座標（0-1の比率）"
-      },
-      "confidence": 0.9
-    }
+    {"text": "5", "ymin": 120, "xmin": 80, "ymax": 145, "xmax": 95},
+    {"text": "12", "ymin": 200, "xmin": 150, "ymax": 230, "xmax": 190}
   ]
 }
 
-# Important
-- JSONのみを返してください（マークダウンのコードブロックは不要）
-- 座標は0から1の比率で表現（例: 画像幅の半分なら0.5）
-- 問題番号（①②など）は除外
-- 変数（x, y, a, b）は除外、数値のみ検出
-- 小さすぎる数値（1桁の指数など）も可能な限り検出`;
+COORDINATES:
+- Scale: 0-1000 (0 = top/left edge, 1000 = bottom/right edge)
+- ymin: top edge, xmin: left edge, ymax: bottom edge, xmax: right edge
 
-function parseDetectionResult(text: string, imageWidth: number, imageHeight: number): DetectResult {
+Return ONLY the JSON. No explanations.`;
+
+/**
+ * レスポンスをパースしてピクセル座標に変換
+ */
+function parseDetectionResult(
+  text: string,
+  imageWidth: number,
+  imageHeight: number
+): DetectResult {
   try {
-    // JSONを抽出
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.log('[Detect API] No JSON found in response');
+      console.log("[Detect API] No JSON found");
       return { numbers: [], success: false };
     }
 
@@ -83,26 +88,27 @@ function parseDetectionResult(text: string, imageWidth: number, imageHeight: num
     const numbers: DetectedNumber[] = parsed.numbers.map((item: unknown) => {
       const n = item as {
         text: string;
-        bbox: { x0: number; y0: number; x1: number; y1: number };
-        confidence?: number;
+        ymin: number;
+        xmin: number;
+        ymax: number;
+        xmax: number;
       };
 
-      // 比率をピクセル座標に変換
+      // 0-1000 正規化座標 → ピクセル座標
+      const x = Math.round((n.xmin / 1000) * imageWidth);
+      const y = Math.round((n.ymin / 1000) * imageHeight);
+      const width = Math.round(((n.xmax - n.xmin) / 1000) * imageWidth);
+      const height = Math.round(((n.ymax - n.ymin) / 1000) * imageHeight);
+
       return {
         text: String(n.text),
-        bbox: {
-          x0: Math.round(n.bbox.x0 * imageWidth),
-          y0: Math.round(n.bbox.y0 * imageHeight),
-          x1: Math.round(n.bbox.x1 * imageWidth),
-          y1: Math.round(n.bbox.y1 * imageHeight),
-        },
-        confidence: n.confidence || 0.8,
+        bbox: { x, y, width, height },
       };
     });
 
     return { numbers, success: true };
   } catch (e) {
-    console.error('[Detect API] Parse error:', e);
+    console.error("[Detect API] Parse error:", e);
     return { numbers: [], success: false };
   }
 }
@@ -122,14 +128,11 @@ export async function POST(request: Request) {
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Try each model
     for (const modelName of GEMINI_MODEL_LIST) {
       try {
-        console.log(`[Detect API] Trying model: ${modelName}`);
+        console.log(`[Detect API] Trying: ${modelName}`);
 
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-        });
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const result = await model.generateContent([
           {
@@ -142,7 +145,7 @@ export async function POST(request: Request) {
         ]);
 
         const text = result.response.text();
-        console.log('[Detect API] Raw response:', text.substring(0, 500));
+        console.log("[Detect API] Response:", text.substring(0, 300));
 
         const detection = parseDetectionResult(text, imageWidth, imageHeight);
 
@@ -151,9 +154,9 @@ export async function POST(request: Request) {
           return NextResponse.json(detection);
         }
 
-        console.log('[Detect API] No numbers found, trying next model...');
+        console.log("[Detect API] No numbers, trying next model...");
       } catch (e) {
-        console.log(`[Detect API] Failed with ${modelName}:`, e);
+        console.log(`[Detect API] ${modelName} failed:`, e);
         continue;
       }
     }
