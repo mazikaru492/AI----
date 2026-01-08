@@ -2,11 +2,11 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Camera, ChevronRight, Sparkles } from 'lucide-react';
 import type { GenerateResult } from '@/types';
 import { useAppShell } from '@/components/AppShell';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { UsageStatsBadge } from '@/components/ui/UsageStatsBadge';
 import { ProblemCard } from '@/components/ProblemCard';
 import { compressImage } from '@/lib/imageCompression';
 import { formatNow, generateId } from '@/lib/utils';
@@ -47,30 +47,6 @@ export default function Home() {
   const clearSelectedHistoryEntry = shell?.clearSelectedHistoryEntry;
   const incrementApiUsage = shell?.incrementApiUsage;
 
-  // 置換数値を生成（Canvas画像エディタ用）
-  const generateReplacements = useCallback(
-    async (numbers: string[]): Promise<{ original: string; replacement: string }[]> => {
-      const res = await fetch('/api/replace', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numbers }),
-      });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || 'Failed to generate replacements');
-      }
-
-      // API使用回数をインクリメント
-      if (incrementApiUsage) {
-        incrementApiUsage();
-      }
-
-      return res.json();
-    },
-    [incrementApiUsage]
-  );
-
   // Countdown timer
   useEffect(() => {
     if (waitSeconds <= 0) return;
@@ -96,17 +72,15 @@ export default function Home() {
     setCreatedAt('');
 
     if (!imageFile) {
-      setError('先に問題画像を撮影（または選択）してください。\n');
+      setError('先に問題画像を撮影（または選択）してください。');
       return;
     }
 
     setIsLoading(true);
     try {
-      // 画像圧縮
       setLoadingMessage('画像を最適化中...');
       const optimizedFile = await compressImage(imageFile);
 
-      // API呼び出し
       const formData = new FormData();
       formData.append('image', optimizedFile, optimizedFile.name);
 
@@ -118,7 +92,6 @@ export default function Home() {
 
       const data = (await res.json()) as unknown;
 
-      // レートリミットエラー
       if (res.status === 429) {
         setWaitSeconds(RATE_LIMIT_WAIT_SECONDS);
         const message =
@@ -128,7 +101,6 @@ export default function Home() {
         throw new Error(message);
       }
 
-      // その他のエラー
       if (!res.ok) {
         const message =
           typeof data === 'object' && data && 'error' in data
@@ -137,18 +109,13 @@ export default function Home() {
         throw new Error(message);
       }
 
-      // 成功
       const generated = data as GenerateResult;
       const ts = formatNow();
       setResult(generated);
       setCreatedAt(ts);
 
-      // API使用回数をインクリメント
-      if (incrementApiUsage) {
-        incrementApiUsage();
-      }
+      if (incrementApiUsage) incrementApiUsage();
 
-      // 履歴に追加
       if (addHistoryEntry) {
         addHistoryEntry({
           id: generateId(),
@@ -172,204 +139,233 @@ export default function Home() {
     setError(null);
   }
 
+  const apiUsageCount = shell?.apiUsage?.count ?? 0;
+  const apiUsageLimit = shell?.apiUsage?.limit ?? 1500;
+
   return (
     <>
       {isLoading && <LoadingOverlay message={loadingMessage} />}
 
-      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-5 py-8">
-        {/* Header Section */}
-        <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+      {/* System Gray 6 Background with Ambient Light Orbs */}
+      <div className="fixed inset-0 bg-[#F2F2F7] -z-10">
+        {/* Ambient Light Orb - Top Right */}
+        <div
+          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-40"
+          style={{
+            background: 'radial-gradient(circle, rgba(0,122,255,0.15) 0%, transparent 70%)',
+            filter: 'blur(60px)',
+          }}
+        />
+        {/* Ambient Light Orb - Bottom Left */}
+        <div
+          className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full opacity-30"
+          style={{
+            background: 'radial-gradient(circle, rgba(52,199,89,0.15) 0%, transparent 70%)',
+            filter: 'blur(60px)',
+          }}
+        />
+      </div>
+
+      {/* Frosted Glass Navigation Bar */}
+      <nav className="sticky top-0 z-50 backdrop-blur-md bg-[#F2F2F7]/85 border-b border-white/20">
+        <div className="mx-auto max-w-lg px-5 h-14 flex items-center justify-between">
+          {/* App Title */}
+          <h1 className="text-lg font-bold tracking-tight text-slate-900">
             AI問題変換
           </h1>
-          <p className="text-base text-slate-600">
-            問題用紙を撮影すると、数値だけ変えた類題を作成します
-          </p>
-          {/* API使用状況バッジ */}
-          {shell && (
-            <div className="pt-3 flex justify-center">
-              <UsageStatsBadge
-                count={shell.apiUsage?.count ?? 0}
-                limit={shell.apiUsage?.limit ?? 1500}
-                hydrated={shell.apiUsage?.hydrated ?? false}
-              />
+
+          {/* Usage Capsule */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 backdrop-blur-sm border border-white/30 shadow-[0_2px_8px_rgb(0,0,0,0.04)]">
+            <span className={`w-2 h-2 rounded-full ${apiUsageCount < apiUsageLimit * 0.8 ? 'bg-[#34C759]' : 'bg-[#FF9500]'}`} />
+            <span className="font-mono text-sm font-medium text-slate-700">
+              {apiUsageCount}/{apiUsageLimit}
+            </span>
+          </div>
+        </div>
+      </nav>
+
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
+
+        {/* Hero Scanner Card */}
+        <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+
+          {/* Hidden file input */}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          {/* Dropzone Area */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={isLoading}
+            className="w-full aspect-[4/3] rounded-[24px] border-2 border-dashed border-slate-200/80 bg-slate-50/50 hover:bg-slate-100/50 hover:border-[#007AFF]/40 transition-all duration-300 flex flex-col items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+          >
+            {/* Camera Icon Circle */}
+            <div className="w-20 h-20 rounded-full bg-[#007AFF]/10 flex items-center justify-center group-hover:bg-[#007AFF]/15 transition-colors">
+              <Camera className="w-10 h-10 text-[#007AFF] stroke-[1.5]" />
             </div>
-          )}
-        </header>
 
-        {/* Main Card - Glassmorphism */}
-        <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6">
-          <div className="flex flex-col gap-4">
-            {/* Hidden file input */}
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <div className="text-center">
+              <p className="text-base font-semibold text-slate-800">
+                問題用紙を撮影
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                タップしてカメラを起動
+              </p>
+            </div>
 
-            {/* Camera button - Pill shaped with bounce */}
-            <button
-              type="button"
-              className="h-14 w-full rounded-full bg-slate-900 px-6 text-base font-semibold text-white active:scale-95 transition-transform duration-150 disabled:opacity-50 disabled:active:scale-100"
-              onClick={() => inputRef.current?.click()}
-              disabled={isLoading}
-            >
-              📷 カメラで撮影（または画像を選択）
-            </button>
+            {/* File Selected Indicator */}
+            {imageFile && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#34C759]/10 border border-[#34C759]/20">
+                <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+                <span className="text-sm font-medium text-[#34C759] truncate max-w-[200px]">
+                  {imageFile.name}
+                </span>
+              </div>
+            )}
+          </button>
 
-            {/* Generate button - Apple Blue pill */}
-            <button
-              type="button"
-              className={
-                isWaiting
-                  ? 'h-14 w-full rounded-full bg-slate-100 px-6 text-base font-semibold text-slate-500 border border-slate-200'
-                  : 'h-14 w-full rounded-full bg-[#007AFF] px-6 text-base font-semibold text-white active:scale-95 transition-transform duration-150 hover:bg-[#0066DD] disabled:opacity-50 disabled:active:scale-100'
+          {/* Generate Button - iOS Style */}
+          <button
+            type="button"
+            onClick={generate}
+            disabled={isLoading || !imageFile || isWaiting}
+            className={`
+              mt-5 w-full h-14 rounded-full text-base font-semibold
+              flex items-center justify-center gap-2
+              transition-all duration-200
+              active:scale-[0.96]
+              disabled:active:scale-100
+              ${isWaiting
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : imageFile
+                  ? 'bg-[#007AFF] text-white hover:bg-[#0066DD] shadow-[0_4px_14px_rgb(0,122,255,0.25)] disabled:opacity-50'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
               }
-              onClick={generate}
-              disabled={isLoading || !imageFile || isWaiting}
-            >
-              {isWaiting ? `⏳ 再試行まであと ${waitSeconds} 秒` : '✨ 類題を生成'}
-            </button>
+            `}
+          >
+            {isWaiting ? (
+              <>⏳ 再試行まであと {waitSeconds} 秒</>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                類題を生成
+              </>
+            )}
+          </button>
 
-            {/* Countdown progress bar */}
-            {isWaiting && (
+          {/* Countdown Progress */}
+          {isWaiting && (
+            <div className="mt-4">
               <ProgressBar
                 current={waitSeconds}
                 total={RATE_LIMIT_WAIT_SECONDS}
-                message="現在、AIが休憩中です。あと少しで次の問題を作成できます。"
+                message="AIが休憩中です。あと少しお待ちください。"
               />
-            )}
-
-            {/* File status */}
-            <div className="text-center">
-              {imageFile ? (
-                <p className="text-sm text-slate-600 flex items-center justify-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                  選択中: {imageFile.name}
-                </p>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  まずは問題用紙を撮影してください
-                </p>
-              )}
             </div>
+          )}
 
-            {/* Error message */}
-            {error && (
-              <div className="rounded-2xl bg-red-50/80 backdrop-blur-sm border border-red-200/50 p-4">
-                <p className="whitespace-pre-wrap text-sm font-medium text-red-600">
-                  {error}
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 rounded-2xl bg-[#FF3B30]/10 border border-[#FF3B30]/20 p-4">
+              <p className="text-sm font-medium text-[#FF3B30]">{error}</p>
+            </div>
+          )}
         </section>
 
-        {/* Ad Banner - Conditionally rendered */}
-        <AdBanner
-          slot="main-page-middle"
-          position="middle"
-          enabled={false} // 広告を有効にするにはtrueに変更
-        />
+        {/* Ad Banner Placeholder */}
+        <AdBanner slot="main-page-middle" position="middle" enabled={false} />
 
-        {/* Canvas Image Editor - Glassmorphism Card */}
+        {/* Canvas Image Editor */}
         {imageFile && (
-          <section
-            className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-          >
-            <h2 className="mb-4 text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <span>🖼️</span> 画像編集
+          <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 animate-fadeIn">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2 mb-4">
+              <span className="w-8 h-8 rounded-xl bg-[#5856D6]/10 flex items-center justify-center">
+                🖼️
+              </span>
+              画像編集
             </h2>
             <CanvasImageEditor
               imageFile={imageFile}
-              onComplete={() => {
-                if (incrementApiUsage) {
-                  incrementApiUsage();
-                }
-              }}
+              onComplete={() => incrementApiUsage?.()}
             />
           </section>
         )}
 
-        {/* Results section - Glassmorphism Card with animation */}
+        {/* Results Section - iOS Inset Grouped Style */}
         {result && (
-          <section
-            className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-xl shadow-black/5 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-          >
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <span>📝</span> 生成結果
-            </h2>
+          <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-fadeIn">
+            {/* Section Header */}
+            <div className="px-6 pt-6 pb-4">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-[#FF9500]/10 flex items-center justify-center">
+                  📝
+                </span>
+                生成結果
+              </h2>
+            </div>
 
-            <div className="mt-4 space-y-4">
+            {/* Results List - Inset Grouped */}
+            <div className="mx-4 mb-4 rounded-2xl bg-white/60 border border-white/40 divide-y divide-slate-200/50 overflow-hidden">
               {result.map((problem, idx) => (
                 <div
                   key={problem.id}
-                  className="animate-in fade-in slide-in-from-bottom-2"
-                  style={{ animationDelay: `${idx * 100}ms`, animationFillMode: 'both' }}
+                  className="flex items-center justify-between px-4 py-3.5 hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                  style={{
+                    animationDelay: `${idx * 80}ms`,
+                    animation: 'fadeSlideIn 0.4s ease-out forwards',
+                    opacity: 0,
+                  }}
                 >
-                  <ProblemCard
-                    problem={problem}
-                    index={idx}
-                    isLast={idx === result.length - 1}
-                  />
+                  <div className="flex-1 min-w-0">
+                    <ProblemCard
+                      problem={problem}
+                      index={idx}
+                      isLast={idx === result.length - 1}
+                    />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 transition-colors flex-shrink-0 ml-2" />
                 </div>
               ))}
+            </div>
 
-              <div className="pt-2">
-                <PdfDownloadButton result={result} createdAt={createdAt} />
-              </div>
+            {/* PDF Download Button */}
+            <div className="px-6 pb-6">
+              <PdfDownloadButton result={result} createdAt={createdAt} />
             </div>
           </section>
         )}
       </main>
 
-      {/* Scanning Animation Keyframes - injected as style tag */}
+      {/* CSS Animations */}
       <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+
         @keyframes scanning {
-          0% {
-            transform: translateY(-100%);
-          }
-          100% {
-            transform: translateY(100%);
-          }
+          0%, 100% { transform: translateY(-100%); }
+          50% { transform: translateY(100%); }
         }
 
         .scanning-animation {
-          animation: scanning 1.5s ease-in-out infinite;
-        }
-
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes slide-in-from-bottom-4 {
-          from {
-            transform: translateY(16px);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slide-in-from-bottom-2 {
-          from {
-            transform: translateY(8px);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-
-        .animate-in {
-          animation: fade-in 0.5s ease-out, slide-in-from-bottom-4 0.5s ease-out;
+          animation: scanning 2s ease-in-out infinite;
         }
       `}</style>
     </>
