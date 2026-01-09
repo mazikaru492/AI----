@@ -4,16 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, Download, ImageIcon, Loader2, Sparkles, X } from 'lucide-react';
 import { useAppShell } from '@/components/AppShell';
 import { AdBanner } from '@/components/ads/AdBanner';
-import { smartErase, canvasToBlob, type BoundingBox } from '@/lib/smartErase';
+import { smartEraseAndReplace, canvasToBlob, type DetectedNumber } from '@/lib/smartErase';
 
 // =====================================
 // Types
 // =====================================
-
-interface DetectedNumber {
-  text: string;
-  bbox: BoundingBox;
-}
 
 interface DetectionResponse {
   numbers: DetectedNumber[];
@@ -132,10 +127,10 @@ export default function Home() {
         throw new Error('数字が検出されませんでした。別の画像をお試しください。');
       }
 
-      // Step 4: Smart Erase 実行
-      setStatusMessage(`${data.numbers.length} 個の数字を消去中...`);
-      const boxes = data.numbers.map((n) => n.bbox);
-      smartErase(ctx, boxes, { threshold: 45, padding: 3 });
+      // Step 4: Smart Erase + Random Number Replacement 実行
+      setStatusMessage(`${data.numbers.length} 個の数字を変換中...`);
+      const replacements = smartEraseAndReplace(ctx, data.numbers, { padding: 2, minBrightness: 200 });
+      console.log('[processImage] Replacements:', Object.fromEntries(replacements));
 
       // Step 5: 結果を生成
       setStatusMessage('画像を生成中...');
