@@ -22,6 +22,10 @@ export interface SmartEraseOptions {
   padding?: number;
   /** 背景色の最小輝度。これより暗い場合は白を使用 - デフォルト: 200 */
   minBrightness?: number;
+  /** 最小フォントサイズ（px） - デフォルト: 10 */
+  minFontSize?: number;
+  /** 小さなボックスの閾値（px） - これ以下はパディング1pxを使用 - デフォルト: 20 */
+  smallBoxThreshold?: number;
 }
 
 /**
@@ -130,7 +134,12 @@ export function smartEraseAndReplace(
   detections: DetectedNumber[],
   options: SmartEraseOptions = {}
 ): Map<string, string> {
-  const { padding = 2, minBrightness = 200 } = options;
+  const {
+    padding: basePadding = 2,
+    minBrightness = 200,
+    minFontSize = 10,
+    smallBoxThreshold = 20
+  } = options;
 
   const canvas = ctx.canvas;
   const canvasWidth = canvas.width;
@@ -145,7 +154,11 @@ export function smartEraseAndReplace(
   for (const detection of detections) {
     const { text, bbox } = detection;
 
-    // Step 1: 拡張ボックスの範囲を計算
+    // Step 1: 小さなボックスかどうかを判定し、パディングを調整
+    const isSmallBox = bbox.height < smallBoxThreshold || bbox.width < smallBoxThreshold;
+    const padding = isSmallBox ? 1 : basePadding;
+
+    // Step 2: 拡張ボックスの範囲を計算
     const x1 = Math.max(0, Math.floor(bbox.x - padding));
     const y1 = Math.max(0, Math.floor(bbox.y - padding));
     const x2 = Math.min(canvasWidth, Math.ceil(bbox.x + bbox.width + padding));
@@ -153,31 +166,34 @@ export function smartEraseAndReplace(
     const fillWidth = x2 - x1;
     const fillHeight = y2 - y1;
 
-    // Step 2: 境界から最も明るいピクセルをサンプリング
+    // Step 3: 境界から最も明るいピクセルをサンプリング
     const bgColor = sampleBrightestBorderColor(imageData, bbox, padding, canvasWidth, canvasHeight);
 
-    // Step 3: 輝度が低すぎる場合は白を使用
+    // Step 4: RGB閾値チェック - 非常に明るい場合は純白を使用（グレーボックス防止）
     let fillColor: string;
-    if (bgColor.luminance < minBrightness) {
+    const isVeryBright = bgColor.r > 210 && bgColor.g > 210 && bgColor.b > 210;
+
+    if (isVeryBright || bgColor.luminance < minBrightness) {
       fillColor = '#FFFFFF';
     } else {
       fillColor = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;
     }
 
-    // Step 4: 拡張矩形全体を塗りつぶし（消しカス防止）
+    // Step 5: 拡張矩形全体を塗りつぶし（消しカス防止）
     ctx.fillStyle = fillColor;
     ctx.fillRect(x1, y1, fillWidth, fillHeight);
 
-    // Step 5: 新しいランダム数字を生成
+    // Step 6: 新しいランダム数字を生成
     const newNumber = generateDifferentNumber(text);
     replacements.set(text, newNumber);
 
-    // Step 6: 新しい数字を描画
+    // Step 7: 新しい数字を描画（最小フォントサイズ制約付き）
     const centerX = bbox.x + bbox.width / 2;
     const centerY = bbox.y + bbox.height / 2;
-    const fontSize = Math.round(bbox.height * 0.85);
+    const calculatedFontSize = Math.round(bbox.height * 0.85);
+    const fontSize = Math.max(calculatedFontSize, minFontSize);
 
-    ctx.fillStyle = '#222222'; // ダークグレー（インク色）
+    ctx.fillStyle = '#000000'; // 純黒（インク色）
     ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -215,7 +231,9 @@ export function smartErase(
     const bgColor = sampleBrightestBorderColor(imageData, bbox, padding, canvasWidth, canvasHeight);
 
     let fillColor: string;
-    if (bgColor.luminance < minBrightness) {
+    const isVeryBright = bgColor.r > 210 && bgColor.g > 210 && bgColor.b > 210;
+
+    if (isVeryBright || bgColor.luminance < minBrightness) {
       fillColor = '#FFFFFF';
     } else {
       fillColor = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;

@@ -38,34 +38,42 @@ function getApiKey(): string {
 }
 
 /**
- * Precision Coordinate Scanner プロンプト
- * インクの完全なフットプリントを検出
+ * Micro-Detection プロンプト
+ * 分数、指数、添字などの小さな数字も検出
  */
-const DETECTION_PROMPT = `You are a Precision Coordinate Scanner.
+const DETECTION_PROMPT = `You are a Precision Micro-Text Digit Scanner.
 
-TASK: Scan for the FULL INK FOOTPRINT of every numeric digit (0-9) in this image.
+TASK: Detect the EXACT bounding box of EVERY numeric digit (0-9) in this image.
+You MUST find ALL integers, including very small ones ("Micro-Text").
 
-PRIORITY: Return bounding boxes that COMPLETELY cover all ink marks.
-- It is BETTER to be slightly too large than to leave any ink visible.
-- Include any shadows or bleeding of the ink.
+CRITICAL - SMALL DIGIT DETECTION:
+You MUST detect these commonly missed small digits:
+1. **Exponents/Superscripts** - e.g., the "2" in x², the "3" in 2³
+2. **Fractions** - BOTH numerator AND denominator digits separately
+3. **Indices/Subscripts** - e.g., the "1" in x₁, the "n" subscripts
+4. **Coefficients** - small numbers before variables
 
 RULES:
 - ONLY detect digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-- IGNORE all letters (x, y, a, b, A-Z), symbols (+, -, =, etc.), and problem markers (①②③)
+- IGNORE all letters (x, y, a, b, A-Z), symbols (+, -, =, ÷, ×), and markers (①②③)
 - Each detection should FULLY ENCLOSE the digit's ink footprint
-- Multi-digit numbers (e.g., "12") should be detected as ONE box containing all digits
+- Multi-digit numbers (e.g., "12") should be detected as ONE box
+- For fractions: detect numerator digits and denominator digits SEPARATELY
+- Return PRECISE coordinates, especially for small digits
 
 OUTPUT FORMAT (raw JSON only, no markdown):
 {
   "numbers": [
-    {"text": "5", "ymin": 120, "xmin": 80, "ymax": 145, "xmax": 95},
-    {"text": "12", "ymin": 200, "xmin": 150, "ymax": 230, "xmax": 190}
+    {"text": "5", "ymin": 120.5, "xmin": 80.2, "ymax": 145.8, "xmax": 95.1},
+    {"text": "2", "ymin": 50.0, "xmin": 200.0, "ymax": 65.0, "xmax": 210.0}
   ]
 }
 
-COORDINATES:
+COORDINATE PRECISION:
 - Scale: 0-1000 (0 = top/left edge, 1000 = bottom/right edge)
+- Decimal values are allowed for higher precision
 - ymin: top edge, xmin: left edge, ymax: bottom edge, xmax: right edge
+- For tiny digits, ensure the box tightly fits the ink footprint
 
 Return ONLY the JSON. No explanations.`;
 

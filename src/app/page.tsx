@@ -83,7 +83,10 @@ export default function Home() {
     setProcessedUrl(null);
 
     try {
-      // Step 1: 画像をCanvasに描画
+      // High-DPI スケールファクター（小さなテキストの品質向上）
+      const SCALE_FACTOR = 2;
+
+      // Step 1: 画像をCanvasに描画（High-DPI対応）
       setStatusMessage('画像を読み込み中...');
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -96,14 +99,30 @@ export default function Home() {
         img.src = URL.createObjectURL(imageFile);
       });
 
-      canvas.width = img.width;
-      canvas.height = img.height;
+      // 元の画像サイズを保存
+      const originalWidth = img.width;
+      const originalHeight = img.height;
+
+      // High-DPI Canvas: 内部解像度を2倍に設定
+      canvas.width = originalWidth * SCALE_FACTOR;
+      canvas.height = originalHeight * SCALE_FACTOR;
+
+      // スケーリングして描画
+      ctx.scale(SCALE_FACTOR, SCALE_FACTOR);
       ctx.drawImage(img, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // スケールをリセット
       URL.revokeObjectURL(img.src);
 
-      // Step 2: 画像データをBase64に変換
+      // Step 2: 画像データをBase64に変換（元のサイズで）
+      // APIに送信する画像は元のサイズを使用（座標の正規化のため）
       setStatusMessage('数字を検出中...');
-      const base64 = canvas.toDataURL('image/png').split(',')[1];
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = originalWidth;
+      tempCanvas.height = originalHeight;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) throw new Error('Temp canvas context を取得できませんでした');
+      tempCtx.drawImage(img, 0, 0);
+      const base64 = tempCanvas.toDataURL('image/png').split(',')[1];
 
       // Step 3: Gemini API で数字検出
       const response = await fetch('/api/detect', {
@@ -112,8 +131,8 @@ export default function Home() {
         body: JSON.stringify({
           imageBase64: base64,
           mimeType: 'image/png',
-          imageWidth: canvas.width,
-          imageHeight: canvas.height,
+          imageWidth: originalWidth,
+          imageHeight: originalHeight,
         }),
       });
 
@@ -127,12 +146,28 @@ export default function Home() {
         throw new Error('数字が検出されませんでした。別の画像をお試しください。');
       }
 
-      // Step 4: Smart Erase + Random Number Replacement 実行
+      // Step 4: 座標をスケールファクターで調整
+      const scaledNumbers = data.numbers.map(n => ({
+        text: n.text,
+        bbox: {
+          x: n.bbox.x * SCALE_FACTOR,
+          y: n.bbox.y * SCALE_FACTOR,
+          width: n.bbox.width * SCALE_FACTOR,
+          height: n.bbox.height * SCALE_FACTOR,
+        }
+      }));
+
+      // Step 5: Smart Erase + Random Number Replacement 実行
       setStatusMessage(`${data.numbers.length} 個の数字を変換中...`);
-      const replacements = smartEraseAndReplace(ctx, data.numbers, { padding: 2, minBrightness: 200 });
+      const replacements = smartEraseAndReplace(ctx, scaledNumbers, {
+        padding: 2 * SCALE_FACTOR,
+        minBrightness: 200,
+        minFontSize: 10 * SCALE_FACTOR,
+        smallBoxThreshold: 20 * SCALE_FACTOR,
+      });
       console.log('[processImage] Replacements:', Object.fromEntries(replacements));
 
-      // Step 5: 結果を生成
+      // Step 6: 結果を生成
       setStatusMessage('画像を生成中...');
       const blob = await canvasToBlob(canvas);
       const resultUrl = URL.createObjectURL(blob);
