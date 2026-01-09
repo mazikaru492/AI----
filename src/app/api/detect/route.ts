@@ -38,17 +38,21 @@ function getApiKey(): string {
 }
 
 /**
- * Pure Coordinate Scanner プロンプト
- * シンプル・高精度・座標のみ
+ * Precision Coordinate Scanner プロンプト
+ * インクの完全なフットプリントを検出
  */
-const DETECTION_PROMPT = `You are a Pure Coordinate Scanner.
+const DETECTION_PROMPT = `You are a Precision Coordinate Scanner.
 
-TASK: Find every numeric digit (0-9) in this image and return its exact bounding box.
+TASK: Scan for the FULL INK FOOTPRINT of every numeric digit (0-9) in this image.
+
+PRIORITY: Return bounding boxes that COMPLETELY cover all ink marks.
+- It is BETTER to be slightly too large than to leave any ink visible.
+- Include any shadows or bleeding of the ink.
 
 RULES:
 - ONLY detect digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 - IGNORE all letters (x, y, a, b, A-Z), symbols (+, -, =, etc.), and problem markers (①②③)
-- Each detection should be TIGHT around the digit pixels
+- Each detection should FULLY ENCLOSE the digit's ink footprint
 - Multi-digit numbers (e.g., "12") should be detected as ONE box containing all digits
 
 OUTPUT FORMAT (raw JSON only, no markdown):
@@ -64,6 +68,7 @@ COORDINATES:
 - ymin: top edge, xmin: left edge, ymax: bottom edge, xmax: right edge
 
 Return ONLY the JSON. No explanations.`;
+
 
 /**
  * レスポンスをパースしてピクセル座標に変換

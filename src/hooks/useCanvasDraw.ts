@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useRef, type RefObject } from 'react';
+import type { NumberReplacement } from '@/types';
 import {
   replaceNumbersOnCanvas,
   drawImageToCanvas,
   canvasToBlob,
-  type NumberReplacement,
 } from '@/lib/canvasUtils';
 
 /**
