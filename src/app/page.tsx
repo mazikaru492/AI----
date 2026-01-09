@@ -2,21 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, ChevronRight, Sparkles, X, ImageIcon } from 'lucide-react';
-import type { GenerateResult } from '@/types';
+import { Camera, X, ImageIcon } from 'lucide-react';
 import { useAppShell } from '@/components/AppShell';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { ProblemCard } from '@/components/ProblemCard';
-import { compressImage } from '@/lib/imageCompression';
-import { formatNow, generateId } from '@/lib/utils';
-import { RATE_LIMIT_WAIT_SECONDS } from '@/lib/gemini';
 import { AdBanner } from '@/components/ads/AdBanner';
-
-const PdfDownloadButton = dynamic(
-  () => import('@/components/PdfDownloadButton').then((m) => m.PdfDownloadButton),
-  { ssr: false }
-);
 
 const CanvasImageEditor = dynamic(
   () => import('@/components/CanvasImageEditor').then((m) => m.CanvasImageEditor),
@@ -29,18 +17,12 @@ export default function Home() {
   // Core State
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [result, setResult] = useState<GenerateResult | null>(null);
-  const [createdAt, setCreatedAt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('生成中…');
   const [error, setError] = useState<string | null>(null);
-  const [waitSeconds, setWaitSeconds] = useState(0);
-
-  const isWaiting = waitSeconds > 0;
 
   // AppShell context
   const shell = useAppShell();
-  const { addHistoryEntry, selectedHistoryEntry, clearSelectedHistoryEntry, incrementApiUsage, apiUsage } = shell ?? {};
+  const { incrementApiUsage, apiUsage } = shell ?? {};
   const apiUsageCount = apiUsage?.count ?? 0;
   const apiUsageLimit = apiUsage?.limit ?? 1500;
 
@@ -55,83 +37,19 @@ export default function Home() {
     return () => URL.revokeObjectURL(url);
   }, [imageFile]);
 
-  // カウントダウンタイマー
-  useEffect(() => {
-    if (waitSeconds <= 0) return;
-    const timer = setTimeout(() => setWaitSeconds((prev) => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [waitSeconds]);
-
-  // 履歴選択時の処理
-  useEffect(() => {
-    if (!selectedHistoryEntry || !clearSelectedHistoryEntry) return;
-    setResult(selectedHistoryEntry.result);
-    setCreatedAt(selectedHistoryEntry.createdAt);
-    setError(null);
-    clearSelectedHistoryEntry();
-  }, [selectedHistoryEntry, clearSelectedHistoryEntry]);
-
   // ファイル選択
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setImageFile(file);
-    setResult(null);
     setError(null);
   }, []);
 
   // ファイルをクリア
   const clearFile = useCallback(() => {
     setImageFile(null);
-    setResult(null);
     setError(null);
     if (inputRef.current) inputRef.current.value = '';
   }, []);
-
-  // 生成処理
-  const generate = useCallback(async () => {
-    if (!imageFile) {
-      setError('先に問題画像を選択してください。');
-      return;
-    }
-
-    setError(null);
-    setResult(null);
-    setCreatedAt('');
-    setIsLoading(true);
-
-    try {
-      setLoadingMessage('画像を最適化中...');
-      const optimizedFile = await compressImage(imageFile);
-
-      const formData = new FormData();
-      formData.append('image', optimizedFile, optimizedFile.name);
-
-      setLoadingMessage('AIが類題を生成中...');
-      const res = await fetch('/api/generate', { method: 'POST', body: formData });
-      const data = await res.json() as { error?: string } | GenerateResult;
-
-      if (res.status === 429) {
-        setWaitSeconds(RATE_LIMIT_WAIT_SECONDS);
-        throw new Error('error' in data ? data.error : '利用制限に達しました。1分ほど間隔を空けてください。');
-      }
-
-      if (!res.ok) {
-        throw new Error('error' in data ? data.error : `Request failed (${res.status})`);
-      }
-
-      const generated = data as GenerateResult;
-      const ts = formatNow();
-      setResult(generated);
-      setCreatedAt(ts);
-
-      incrementApiUsage?.();
-      addHistoryEntry?.({ id: generateId(), createdAt: ts, result: generated });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '不明なエラー');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [imageFile, incrementApiUsage, addHistoryEntry]);
 
   // 使用量のステータス色
   const usageStatusColor = useMemo(() =>
@@ -140,8 +58,6 @@ export default function Home() {
 
   return (
     <>
-      {isLoading && <LoadingOverlay message={loadingMessage} />}
-
       {/* 背景 */}
       <div className="fixed inset-0 bg-[#F2F2F7] -z-10">
         <div
@@ -166,6 +82,12 @@ export default function Home() {
       </nav>
 
       <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
+        {/* タイトル */}
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">AI問題変換</h2>
+          <p className="text-sm text-slate-600">問題用紙を撮影すると、数値だけ変えた類題を作成します</p>
+        </div>
+
         {/* 隠しファイル入力 - capture属性なしでアルバム選択可能 */}
         <input
           ref={inputRef}
@@ -219,57 +141,12 @@ export default function Home() {
                   <Camera className="w-10 h-10 text-[#007AFF] stroke-[1.5]" />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold text-slate-800">問題用紙を撮影</p>
+                  <p className="text-base font-semibold text-slate-800">カメラで撮影（または画像を選択）</p>
                   <p className="text-sm text-slate-500 mt-1">タップしてカメラまたはアルバムから選択</p>
                 </div>
               </button>
             )}
           </div>
-
-          {/* 生成ボタン - 画像がある時のみ表示 */}
-          {imageFile && (
-            <div className="p-4 pt-0">
-              <button
-                type="button"
-                onClick={generate}
-                disabled={isLoading || isWaiting}
-                className={`
-                  relative w-full h-14 rounded-full text-base font-semibold overflow-hidden
-                  flex items-center justify-center gap-2 transition-all duration-200
-                  active:scale-[0.96] disabled:active:scale-100
-                  ${isWaiting
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200'
-                    : 'bg-[#007AFF] text-white hover:bg-[#0066DD] shadow-[0_4px_14px_rgb(0,122,255,0.25)] disabled:opacity-50'
-                  }
-                `}
-              >
-                {/* スキャンアニメーション */}
-                {!isWaiting && !isLoading && (
-                  <div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                    style={{ animation: 'scanning 2s ease-in-out infinite' }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-2">
-                  {isWaiting ? (
-                    <>⏳ 再試行まであと {waitSeconds} 秒</>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      類題を生成
-                    </>
-                  )}
-                </span>
-              </button>
-
-              {/* カウントダウン */}
-              {isWaiting && (
-                <div className="mt-3">
-                  <ProgressBar current={waitSeconds} total={RATE_LIMIT_WAIT_SECONDS} message="AIが休憩中です。あと少しお待ちください。" />
-                </div>
-              )}
-            </div>
-          )}
 
           {/* エラー */}
           {error && (
@@ -292,33 +169,12 @@ export default function Home() {
           </section>
         )}
 
-        {/* 結果セクション */}
-        {result && (
-          <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-fadeIn">
-            <div className="px-6 pt-6 pb-4">
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-[#FF9500]/10 flex items-center justify-center">📝</span>
-                生成結果
-              </h2>
-            </div>
-            <div className="mx-4 mb-4 rounded-2xl bg-white/60 border border-white/40 divide-y divide-slate-200/50 overflow-hidden">
-              {result.map((problem, idx) => (
-                <div
-                  key={problem.id}
-                  className="flex items-center justify-between px-4 py-3.5 hover:bg-slate-50/50 transition-colors cursor-pointer group"
-                  style={{ animationDelay: `${idx * 80}ms`, animation: 'fadeSlideIn 0.4s ease-out forwards', opacity: 0 }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <ProblemCard problem={problem} index={idx} isLast={idx === result.length - 1} />
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 transition-colors flex-shrink-0 ml-2" />
-                </div>
-              ))}
-            </div>
-            <div className="px-6 pb-6">
-              <PdfDownloadButton result={result} createdAt={createdAt} />
-            </div>
-          </section>
+        {/* 選択中のファイル名表示 */}
+        {imageFile && (
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+            <span>選択中: {imageFile.name}</span>
+          </div>
         )}
       </main>
 
@@ -327,16 +183,8 @@ export default function Home() {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateX(-8px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out forwards;
-        }
-        @keyframes scanning {
-          0%, 100% { transform: translateX(-100%); }
-          50% { transform: translateX(100%); }
         }
       `}</style>
     </>
