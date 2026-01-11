@@ -68,43 +68,58 @@ function getApiKey(): string {
 
 /**
  * Micro-Detection プロンプト
- * 分数、指数、添字などの小さな数字も検出
- * + ベースライン位置、フォントスタイル、文字ごとのbbox、役割(role)
+ * 中学〜高校数学（数III）全範囲対応
+ * 分数、根号、Σ、∫、lim、行列などの数式構造を検出
  */
-const DETECTION_PROMPT = `You are a Precision Micro-Text Digit Scanner with Math Expression Analysis.
+const DETECTION_PROMPT = `You are a Precision Math Expression Analyzer for Japanese middle/high school math.
 
-TASK: Detect the EXACT bounding box of EVERY numeric digit (0-9) in this image.
-You MUST find ALL integers, including very small ones ("Micro-Text").
+TASK: Detect ALL numeric digits (0-9) in this image and classify their mathematical role.
 
-CRITICAL - ROLE CLASSIFICATION:
-For each detected number, you MUST classify its role:
-1. **"base"** - Normal text on the main baseline (e.g., coefficients like "6" in "6x")
-2. **"sup"** - Superscript/Exponent (e.g., the "2" in x², positioned ABOVE the baseline, smaller font)
-3. **"sub"** - Subscript/Index (e.g., the "1" in x₁, positioned BELOW the baseline, smaller font)
+ROLE CLASSIFICATION (Required for each number):
+
+**Basic Roles:**
+- "base": Normal baseline text (coefficients: "2" in "2x", answers: "5")
+- "sup": Superscript/Exponent (the "2" in x², "3" in 2³)
+- "sub": Subscript/Index (the "1" in x₁, "n" in aₙ)
+
+**Fraction Roles:**
+- "fraction-num": Numerator of a fraction (the "2" in (2/3))
+- "fraction-den": Denominator of a fraction (the "3" in (2/3))
+
+**Big Operator Roles:**
+- "sum-lower": Lower limit of Σ (the "1" in Σ_{k=1}^n)
+- "sum-upper": Upper limit of Σ (the "n" in Σ_{k=1}^n)
+- "int-lower": Lower limit of ∫ (the "0" in ∫₀¹)
+- "int-upper": Upper limit of ∫ (the "1" in ∫₀¹)
+- "lim-sub": Limit subscript (the "0" in lim_{x→0})
+
+**Other Roles:**
+- "sqrt-content": Number inside √ (the "2" in √2)
 
 DETECTION TARGETS:
-- Exponents/Superscripts - the "2" in x², "3" in 2³ (role: "sup")
-- Subscripts/Indices - the "1" in x₁ (role: "sub")
-- Fractions - numerator and denominator separately
-- Coefficients - numbers before variables (role: "base")
+- Coefficients: 2x, 3ab, -5y
+- Exponents: x², 2³, aⁿ
+- Subscripts: x₁, aₙ, log₂
+- Fractions: sin2x/x, (a+b)/2
+- Limits: lim_{x→0}, lim_{n→∞}
+- Summations: Σ_{k=1}^{n}, Σ_{i=0}^{10}
+- Integrals: ∫₀¹, ∫ₐᵇ
+- Square roots: √2, √(x+1)
+- Trigonometry arguments: sin30°, cos2θ
 
 RULES:
 - ONLY detect digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-- IGNORE all letters (x, y, a, b, A-Z), symbols (+, -, =, ÷, ×), and markers (①②③)
-- Each detection should FULLY ENCLOSE the digit's ink footprint
-- Multi-digit numbers (e.g., "12") should be detected as ONE box
-- Return PRECISE coordinates, especially for small digits
+- IGNORE letters (x, y, sin, cos), symbols (+, -, =), markers (①②③)
+- Multi-digit numbers as ONE box (e.g., "12", "100")
+- Precise coordinates, especially for small digits
 
-OUTPUT FORMAT (raw JSON only, no markdown):
+OUTPUT FORMAT (raw JSON only):
 {
   "numbers": [
     {
-      "text": "6",
+      "text": "2",
       "role": "base",
-      "ymin": 100.0,
-      "xmin": 50.0,
-      "ymax": 130.0,
-      "xmax": 70.0,
+      "ymin": 100.0, "xmin": 50.0, "ymax": 130.0, "xmax": 70.0,
       "baselineY": 126.0,
       "fontStyle": "gothic"
     },
@@ -112,43 +127,39 @@ OUTPUT FORMAT (raw JSON only, no markdown):
       "text": "2",
       "role": "sup",
       "parentChar": "x",
-      "ymin": 95.0,
-      "xmin": 120.0,
-      "ymax": 110.0,
-      "xmax": 135.0,
+      "ymin": 95.0, "xmin": 120.0, "ymax": 110.0, "xmax": 135.0,
       "baselineY": 108.0,
       "fontStyle": "gothic"
     },
     {
-      "text": "1",
-      "role": "sub",
-      "parentChar": "x",
-      "ymin": 135.0,
-      "xmin": 200.0,
-      "ymax": 150.0,
-      "xmax": 215.0,
-      "baselineY": 148.0,
+      "text": "0",
+      "role": "lim-sub",
+      "groupId": "lim1",
+      "ymin": 150.0, "xmin": 80.0, "ymax": 165.0, "xmax": 95.0,
+      "baselineY": 162.0,
+      "fontStyle": "gothic"
+    },
+    {
+      "text": "2",
+      "role": "fraction-num",
+      "groupId": "frac1",
+      "ymin": 50.0, "xmin": 100.0, "ymax": 70.0, "xmax": 120.0,
+      "baselineY": 66.0,
       "fontStyle": "gothic"
     }
   ]
 }
 
-FIELD DESCRIPTIONS:
-- **role**: REQUIRED. One of "base", "sup", or "sub"
-  - "base": Normal baseline text
-  - "sup": Superscript (smaller, positioned above parent character)
-  - "sub": Subscript (smaller, positioned below parent character)
-- **parentChar**: For "sup" or "sub" only. The adjacent character this number is attached to (e.g., "x" for x²)
-- **baselineY**: Y-coordinate of text baseline (~85-90% from ymin to ymax)
+FIELDS:
+- **role**: REQUIRED. See role list above
+- **parentChar**: For sup/sub only (e.g., "x" for x²)
+- **groupId**: For related tokens (e.g., same fraction, same Σ)
+- **baselineY**: Y-coordinate of text baseline
 - **fontStyle**: "maru-gothic" | "gothic" | "mincho" | "handwritten"
-- **charBboxes**: For multi-digit numbers, each character's xmin/xmax
 
-COORDINATE PRECISION:
-- Scale: 0-1000 (0 = top/left edge, 1000 = bottom/right edge)
-- Decimal values allowed for precision
-- For tiny superscript/subscript digits, ensure tight bounding boxes
+COORDINATES: Scale 0-1000. Ensure tight bounding boxes for small digits.
 
-Return ONLY the JSON. No explanations.`;
+Return ONLY JSON. No explanations.`;
 
 
 /**

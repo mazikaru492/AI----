@@ -31,9 +31,58 @@ export interface CharBbox {
 export type FontStyle = 'maru-gothic' | 'gothic' | 'mincho' | 'handwritten';
 
 /**
- * 文字の役割（上付き/下付き/通常）
+ * 文字の役割（中学〜高校数学全範囲対応）
  */
-export type TextRole = 'base' | 'sup' | 'sub';
+export type TextRole =
+  // 基本
+  | 'base'              // 通常文字・数字
+  | 'sup'               // 上付き（x²の2）
+  | 'sub'               // 下付き（x₁の1）
+  | 'sign'              // 先頭の±記号
+  | 'operator'          // +, -, ×, ÷, =
+  | 'relation'          // ≡, ∽, ⊂, ≤, ≥, ≠
+
+  // 分数
+  | 'fraction-bar'      // 分数線
+  | 'fraction-num'      // 分子
+  | 'fraction-den'      // 分母
+
+  // 根号
+  | 'sqrt-sign'         // √記号
+  | 'sqrt-vinculum'     // √の横線
+  | 'sqrt-content'      // 根号内
+
+  // 大型演算子
+  | 'sum-op'            // Σ
+  | 'sum-lower'         // Σの下付き
+  | 'sum-upper'         // Σの上付き
+  | 'prod-op'           // Π
+  | 'prod-lower'
+  | 'prod-upper'
+  | 'int-op'            // ∫
+  | 'int-lower'
+  | 'int-upper'
+  | 'lim-op'            // lim
+  | 'lim-sub'           // x→0, n→∞
+
+  // 関数・括弧
+  | 'func-name'         // sin, cos, tan, log, ln
+  | 'paren-left'        // (, [, {
+  | 'paren-right'       // ), ], }
+  | 'abs-bar'           // |
+
+  // ベクトル・行列
+  | 'vector-arrow'      // ベクトル矢印
+  | 'matrix-bracket'    // 行列括弧
+  | 'matrix-element'    // 行列要素
+
+  // その他
+  | 'derivative-op'     // d/dx, ∂
+  | 'prime'             // f', f''
+  | 'infinity'          // ∞
+  | 'factorial'         // !
+  | 'degree'            // °
+  | 'angle-symbol';     // ∠
 
 export interface DetectedNumber {
   text: string;
@@ -195,6 +244,88 @@ function generateDifferentNumber(original: string): string {
   return newNumber;
 }
 
+// ====================================
+// 安全フィルタリング（製品化Phase1）
+// ====================================
+
+/** 安全な数字パターン（1-2桁の整数のみ） */
+const SAFE_NUMBER_RE = /^\d{1,2}$/;
+
+/** 複雑構造を示す役割（これらはスキップ） */
+const COMPLEX_ROLES: TextRole[] = [
+  'fraction-bar', 'fraction-num', 'fraction-den',
+  'sqrt-sign', 'sqrt-vinculum', 'sqrt-content',
+  'sum-op', 'sum-lower', 'sum-upper',
+  'prod-op', 'prod-lower', 'prod-upper',
+  'int-op', 'int-lower', 'int-upper',
+  'lim-op', 'lim-sub',
+  'matrix-bracket', 'matrix-element',
+];
+
+/**
+ * このトークンを安全に置換できるかを判定
+ * 複雑構造や異常なbboxはスキップ
+ */
+function isSafeReplacementToken(
+  detection: DetectedNumber,
+  canvasWidth: number,
+  canvasHeight: number
+): boolean {
+  const { text, bbox, role = 'base' } = detection;
+
+  // 1. 単純な1-2桁の整数のみを対象
+  if (!SAFE_NUMBER_RE.test(text)) {
+    console.log(`[SafeFilter] Skip: "${text}" - not 1-2 digit number`);
+    return false;
+  }
+
+  // 2. 複雑構造の役割はスキップ
+  if (COMPLEX_ROLES.includes(role)) {
+    console.log(`[SafeFilter] Skip: "${text}" - complex role: ${role}`);
+    return false;
+  }
+
+  // 3. 上付き・下付きもスキップ（位置ずれのリスク高い）
+  if (role === 'sup' || role === 'sub') {
+    console.log(`[SafeFilter] Skip: "${text}" - script role: ${role}`);
+    return false;
+  }
+
+  // 4. bbox異常検出
+  // 幅または高さが0以下
+  if (bbox.width <= 0 || bbox.height <= 0) {
+    console.log(`[SafeFilter] Skip: "${text}" - invalid bbox size`);
+    return false;
+  }
+
+  // 幅が画像全体の15%を超える（異常に大きい）
+  if (bbox.width > canvasWidth * 0.15) {
+    console.log(`[SafeFilter] Skip: "${text}" - bbox too wide`);
+    return false;
+  }
+
+  // 高さが画像全体の10%を超える（異常に大きい）
+  if (bbox.height > canvasHeight * 0.1) {
+    console.log(`[SafeFilter] Skip: "${text}" - bbox too tall`);
+    return false;
+  }
+
+  // 5. 位置が画像の端すぎる（右端5%以内はスキップ）
+  if (bbox.x + bbox.width > canvasWidth * 0.95) {
+    console.log(`[SafeFilter] Skip: "${text}" - too close to right edge`);
+    return false;
+  }
+
+  // 6. 位置が画像の上端5%以内はスキップ（ヘッダー領域）
+  if (bbox.y < canvasHeight * 0.05) {
+    console.log(`[SafeFilter] Skip: "${text}" - too close to top edge`);
+    return false;
+  }
+
+  console.log(`[SafeFilter] OK: "${text}" at (${bbox.x}, ${bbox.y})`);
+  return true;
+}
+
 /**
  * フォントプリセットを取得
  */
@@ -297,10 +428,15 @@ export function smartEraseAndReplace(
   const drawInfos: DrawInfo[] = [];
 
   // ========================================
-  // Phase 1: 全ての数字を消去
+  // Phase 1: 安全なトークンのみ消去・置換
   // ========================================
   for (const detection of detections) {
     const { text, bbox, fontStyle } = detection;
+
+    // 安全フィルタ: 単純係数のみを対象
+    if (!isSafeReplacementToken(detection, canvasWidth, canvasHeight)) {
+      continue; // このトークンはスキップ（元画像のまま）
+    }
 
     // 小さなボックスかどうかを判定し、パディングを調整
     const isSmallBox = bbox.height < smallBoxThreshold || bbox.width < smallBoxThreshold;

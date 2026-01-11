@@ -146,7 +146,7 @@ export default function Home() {
         throw new Error('数字が検出されませんでした。別の画像をお試しください。');
       }
 
-      // Step 4: 座標をスケールファクターで調整
+      // Step 4: 座標をスケールファクターで調整（全フィールドを保持）
       const scaledNumbers = data.numbers.map(n => ({
         text: n.text,
         bbox: {
@@ -154,7 +154,17 @@ export default function Home() {
           y: n.bbox.y * SCALE_FACTOR,
           width: n.bbox.width * SCALE_FACTOR,
           height: n.bbox.height * SCALE_FACTOR,
-        }
+        },
+        // 追加フィールドを保持（安全フィルタに必要）
+        baselineY: n.baselineY ? n.baselineY * SCALE_FACTOR : undefined,
+        fontStyle: n.fontStyle,
+        role: n.role,
+        parentChar: n.parentChar,
+        charBboxes: n.charBboxes?.map(cb => ({
+          char: cb.char,
+          xmin: cb.xmin * SCALE_FACTOR,
+          xmax: cb.xmax * SCALE_FACTOR,
+        })),
       }));
 
       // Step 5: Smart Erase + Random Number Replacement 実行
