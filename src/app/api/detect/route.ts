@@ -67,99 +67,69 @@ function getApiKey(): string {
 }
 
 /**
- * Micro-Detection プロンプト
- * 中学〜高校数学（数III）全範囲対応
- * 分数、根号、Σ、∫、lim、行列などの数式構造を検出
+ * Structure-First Detection プロンプト
+ *
+ * 2ステップワークフロー:
+ * 1. LaTeX形式で数式を書き起こし（構造理解）
+ * 2. 各数字の座標を構造に基づいて検出
  */
-const DETECTION_PROMPT = `You are a Precision Math Expression Analyzer for Japanese middle/high school math.
+const DETECTION_PROMPT = `You are an advanced Math Vision AI using **Structure-First Detection**.
 
-TASK: Detect ALL numeric digits (0-9) in this image and classify their mathematical role.
+## 2-Step Workflow
 
-ROLE CLASSIFICATION (Required for each number):
+### Step 1: Semantic Analysis
+First, **transcribe each mathematical expression to LaTeX**.
+This forces you to understand:
+- Which "2" is a coefficient (2x) vs exponent (x²)
+- Where fractions are (numerator vs denominator)
+- What is a subscript vs regular number
 
-**Basic Roles:**
-- "base": Normal baseline text (coefficients: "2" in "2x", answers: "5")
-- "sup": Superscript/Exponent (the "2" in x², "3" in 2³)
-- "sub": Subscript/Index (the "1" in x₁, "n" in aₙ)
+### Step 2: Coordinate Mapping
+Based on your LaTeX understanding, locate each **integer digit**.
 
-**Fraction Roles:**
-- "fraction-num": Numerator of a fraction (the "2" in (2/3))
-- "fraction-den": Denominator of a fraction (the "3" in (2/3))
-
-**Big Operator Roles:**
-- "sum-lower": Lower limit of Σ (the "1" in Σ_{k=1}^n)
-- "sum-upper": Upper limit of Σ (the "n" in Σ_{k=1}^n)
-- "int-lower": Lower limit of ∫ (the "0" in ∫₀¹)
-- "int-upper": Upper limit of ∫ (the "1" in ∫₀¹)
-- "lim-sub": Limit subscript (the "0" in lim_{x→0})
-
-**Other Roles:**
-- "sqrt-content": Number inside √ (the "2" in √2)
-
-DETECTION TARGETS:
-- Coefficients: 2x, 3ab, -5y
-- Exponents: x², 2³, aⁿ
-- Subscripts: x₁, aₙ, log₂
-- Fractions: sin2x/x, (a+b)/2
-- Limits: lim_{x→0}, lim_{n→∞}
-- Summations: Σ_{k=1}^{n}, Σ_{i=0}^{10}
-- Integrals: ∫₀¹, ∫ₐᵇ
-- Square roots: √2, √(x+1)
-- Trigonometry arguments: sin30°, cos2θ
-
-RULES:
-- ONLY detect digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-- IGNORE letters (x, y, sin, cos), symbols (+, -, =), markers (①②③)
-- Multi-digit numbers as ONE box (e.g., "12", "100")
-- Precise coordinates, especially for small digits
-
-OUTPUT FORMAT (raw JSON only):
+## Output JSON
 {
   "numbers": [
     {
       "text": "2",
-      "role": "base",
-      "ymin": 100.0, "xmin": 50.0, "ymax": 130.0, "xmax": 70.0,
-      "baselineY": 126.0,
+      "role": "coefficient",
+      "ymin": 100, "xmin": 50, "ymax": 130, "xmax": 70,
       "fontStyle": "gothic"
     },
     {
       "text": "2",
-      "role": "sup",
-      "parentChar": "x",
-      "ymin": 95.0, "xmin": 120.0, "ymax": 110.0, "xmax": 135.0,
-      "baselineY": 108.0,
-      "fontStyle": "gothic"
-    },
-    {
-      "text": "0",
-      "role": "lim-sub",
-      "groupId": "lim1",
-      "ymin": 150.0, "xmin": 80.0, "ymax": 165.0, "xmax": 95.0,
-      "baselineY": 162.0,
-      "fontStyle": "gothic"
-    },
-    {
-      "text": "2",
-      "role": "fraction-num",
-      "groupId": "frac1",
-      "ymin": 50.0, "xmin": 100.0, "ymax": 70.0, "xmax": 120.0,
-      "baselineY": 66.0,
+      "role": "exponent",
+      "ymin": 95, "xmin": 120, "ymax": 108, "xmax": 132,
       "fontStyle": "gothic"
     }
   ]
 }
 
-FIELDS:
-- **role**: REQUIRED. See role list above
-- **parentChar**: For sup/sub only (e.g., "x" for x²)
-- **groupId**: For related tokens (e.g., same fraction, same Σ)
-- **baselineY**: Y-coordinate of text baseline
-- **fontStyle**: "maru-gothic" | "gothic" | "mincho" | "handwritten"
+## Role Types (Critical for Font Sizing)
+- \`coefficient\`: Number multiplying a variable (the "2" in "2x") - NORMAL size
+- \`exponent\`: Superscript power (the "2" in x²) - SMALL size, above baseline
+- \`subscript\`: Subscript index (the "1" in a₁) - SMALL size, below baseline
+- \`constant\`: Standalone number - NORMAL size
+- \`numerator\`: Top of fraction - may be smaller
+- \`denominator\`: Bottom of fraction - may be smaller
+- \`base\`: Default for any other number
 
-COORDINATES: Scale 0-1000. Ensure tight bounding boxes for small digits.
+## Critical Rules
+1. **Box Precision**: Tight boxes around ONLY the digit's visible ink
+2. **Exponent Boxes**: Must be SMALLER than coefficient boxes (they ARE visually smaller)
+3. **No Merging**: "12" = TWO boxes (one for "1", one for "2")
+4. **Skip Non-Digits**: Ignore x, y, sin, cos, +, -, =
 
-Return ONLY JSON. No explanations.`;
+## Coordinates
+Scale: 0-1000 (0,0 = top-left, 1000,1000 = bottom-right)
+
+## Font Styles
+- "gothic": Most common Japanese math font
+- "mincho": Serif style
+- "maru-gothic": Rounded sans-serif
+- "handwritten": If appears hand-drawn
+
+Return ONLY raw JSON. No markdown, no explanations.`;
 
 
 /**
@@ -213,11 +183,21 @@ function parseDetectionResult(
         ? (n.fontStyle as FontStyle)
         : undefined;
 
-      // 文字役割の検証
-      const validRoles = ['base', 'sup', 'sub'] as const;
-      const role = n.role && validRoles.includes(n.role as typeof validRoles[number])
-        ? (n.role as TextRole)
-        : 'base'; // デフォルトはbase
+      // 文字役割の検証（Structure-First形式 → smartErase形式にマッピング）
+      // exponent → sup, subscript → sub, それ以外 → base
+      let role: TextRole = 'base';
+      if (n.role) {
+        const roleStr = n.role.toLowerCase();
+        if (roleStr === 'exponent' || roleStr === 'sup' || roleStr === 'superscript') {
+          role = 'sup';
+        } else if (roleStr === 'subscript' || roleStr === 'sub') {
+          role = 'sub';
+        } else if (roleStr === 'numerator' || roleStr === 'denominator') {
+          // 分数の場合もbase扱い（位置はbboxで判定されるため）
+          role = 'base';
+        }
+        // coefficient, constant, base, その他 → base
+      }
 
       // 親文字（上付き・下付きの場合のみ）
       const parentChar = (role === 'sup' || role === 'sub') && n.parentChar

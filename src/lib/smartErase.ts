@@ -390,6 +390,242 @@ interface DrawInfo {
   fontSize: number;
 }
 
+// ====================================
+// Smart Blob Erasure (Flood-Fill Logic)
+// ====================================
+
+/**
+ * インク判定の閾値
+ */
+const INK_THRESHOLD = 180;  // これより暗いピクセルをインクとみなす
+const PAPER_THRESHOLD = 220; // これより明るいピクセルを紙とみなす
+
+/**
+ * ピクセル座標を1次元インデックスに変換
+ */
+function pixelIndex(x: number, y: number, width: number): number {
+  return (y * width + x) * 4;
+}
+
+/**
+ * 指定座標の輝度を取得
+ */
+function getPixelLuminance(data: Uint8ClampedArray, x: number, y: number, width: number): number {
+  const idx = pixelIndex(x, y, width);
+  if (idx < 0 || idx >= data.length - 3) return 255;
+  return getLuminance(data[idx], data[idx + 1], data[idx + 2]);
+}
+
+/**
+ * ピクセルがインク（暗い）かどうか
+ */
+function isInkPixel(luminance: number): boolean {
+  return luminance < INK_THRESHOLD;
+}
+
+/**
+ * Smart Blob Erasure の結果
+ */
+interface BlobEraseResult {
+  success: boolean;
+  erasedPixels: Set<number>;  // 消去されたピクセルのインデックス（y * width + x）
+  centroidX: number;          // 重心X
+  centroidY: number;          // 重心Y
+  blobWidth: number;          // blob幅
+  blobHeight: number;         // blob高さ
+}
+
+/**
+ * Center-Out Ink Removal using BFS Flood-Fill
+ *
+ * bboxの中心付近から最も暗いピクセルを特定し、
+ * そこから連結したインク領域のみを消去する。
+ * 分数線や根号線など、数字と分離した構造は保護される。
+ */
+function floodFillErase(
+  imageData: ImageData,
+  bbox: BoundingBox,
+  padding: number = 1
+): BlobEraseResult {
+  const { data, width: imgWidth, height: imgHeight } = imageData;
+
+  // bbox範囲を計算（パディング付き）
+  const x1 = Math.max(0, Math.floor(bbox.x - padding));
+  const y1 = Math.max(0, Math.floor(bbox.y - padding));
+  const x2 = Math.min(imgWidth - 1, Math.ceil(bbox.x + bbox.width + padding));
+  const y2 = Math.min(imgHeight - 1, Math.ceil(bbox.y + bbox.height + padding));
+
+  // Step 1: 中心付近で最も暗いピクセルを探す
+  const centerX = Math.floor(bbox.x + bbox.width / 2);
+  const centerY = Math.floor(bbox.y + bbox.height / 2);
+  const searchRadius = Math.max(3, Math.min(bbox.width, bbox.height) / 4);
+
+  let seedX = centerX;
+  let seedY = centerY;
+  let darkestLum = 255;
+
+  // 中心から放射状に探索
+  for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+    for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+      const px = Math.floor(centerX + dx);
+      const py = Math.floor(centerY + dy);
+      if (px < x1 || px > x2 || py < y1 || py > y2) continue;
+
+      const lum = getPixelLuminance(data, px, py, imgWidth);
+      if (lum < darkestLum) {
+        darkestLum = lum;
+        seedX = px;
+        seedY = py;
+      }
+    }
+  }
+
+  // 最も暗いピクセルがインクでなければ失敗
+  if (!isInkPixel(darkestLum)) {
+    return {
+      success: false,
+      erasedPixels: new Set(),
+      centroidX: centerX,
+      centroidY: centerY,
+      blobWidth: 0,
+      blobHeight: 0,
+    };
+  }
+
+  // Step 2: BFS Flood-Fill でインク領域をトラバース
+  const visited = new Set<number>();
+  const queue: [number, number][] = [[seedX, seedY]];
+  const inkPixels: [number, number][] = [];
+
+  // 4方向（8方向だとアンチエイリアス領域も拾いすぎる）
+  const directions = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+    // 斜め方向も追加（細い線に対応）
+    [-1, -1], [1, -1], [-1, 1], [1, 1],
+  ];
+
+  while (queue.length > 0) {
+    const [cx, cy] = queue.shift()!;
+    const key = cy * imgWidth + cx;
+
+    if (visited.has(key)) continue;
+    visited.add(key);
+
+    // 範囲外チェック（bboxの少し外まで許容）
+    const expandedMargin = 2;
+    if (cx < x1 - expandedMargin || cx > x2 + expandedMargin ||
+        cy < y1 - expandedMargin || cy > y2 + expandedMargin) {
+      continue;
+    }
+
+    const lum = getPixelLuminance(data, cx, cy, imgWidth);
+
+    // インクピクセルなら追加
+    if (isInkPixel(lum)) {
+      inkPixels.push([cx, cy]);
+
+      // 隣接ピクセルをキューに追加
+      for (const [dx, dy] of directions) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        const nkey = ny * imgWidth + nx;
+        if (!visited.has(nkey) && nx >= 0 && nx < imgWidth && ny >= 0 && ny < imgHeight) {
+          queue.push([nx, ny]);
+        }
+      }
+    }
+  }
+
+  // 最小blob面積チェック（ノイズ除外）
+  const minBlobArea = Math.max(4, bbox.width * bbox.height * 0.05);
+  if (inkPixels.length < minBlobArea) {
+    return {
+      success: false,
+      erasedPixels: new Set(),
+      centroidX: centerX,
+      centroidY: centerY,
+      blobWidth: 0,
+      blobHeight: 0,
+    };
+  }
+
+  // Step 3: 重心と範囲を計算
+  let sumX = 0, sumY = 0;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+
+  const erasedSet = new Set<number>();
+  for (const [px, py] of inkPixels) {
+    sumX += px;
+    sumY += py;
+    minX = Math.min(minX, px);
+    maxX = Math.max(maxX, px);
+    minY = Math.min(minY, py);
+    maxY = Math.max(maxY, py);
+    erasedSet.add(py * imgWidth + px);
+  }
+
+  return {
+    success: true,
+    erasedPixels: erasedSet,
+    centroidX: sumX / inkPixels.length,
+    centroidY: sumY / inkPixels.length,
+    blobWidth: maxX - minX + 1,
+    blobHeight: maxY - minY + 1,
+  };
+}
+
+/**
+ * Dilation（膨張処理）でアンチエイリアスのエッジを消去
+ */
+function dilateErasedArea(
+  erasedPixels: Set<number>,
+  imgWidth: number,
+  imgHeight: number,
+  dilationRadius: number = 1
+): Set<number> {
+  const dilated = new Set(erasedPixels);
+
+  for (const key of erasedPixels) {
+    const y = Math.floor(key / imgWidth);
+    const x = key % imgWidth;
+
+    for (let dy = -dilationRadius; dy <= dilationRadius; dy++) {
+      for (let dx = -dilationRadius; dx <= dilationRadius; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < imgWidth && ny >= 0 && ny < imgHeight) {
+          dilated.add(ny * imgWidth + nx);
+        }
+      }
+    }
+  }
+
+  return dilated;
+}
+
+/**
+ * 消去領域を背景色で塗りつぶす
+ */
+function applyBlobErasure(
+  ctx: CanvasRenderingContext2D,
+  imageData: ImageData,
+  erasedPixels: Set<number>,
+  bgColor: { r: number; g: number; b: number }
+): void {
+  const { data, width } = imageData;
+
+  for (const key of erasedPixels) {
+    const idx = key * 4;
+    if (idx >= 0 && idx < data.length - 3) {
+      data[idx] = bgColor.r;
+      data[idx + 1] = bgColor.g;
+      data[idx + 2] = bgColor.b;
+      // アルファは維持
+    }
+  }
+}
+
 /**
  * Canvas上の指定されたボックスを消去し、新しい数字を描画
  *
@@ -430,6 +666,10 @@ export function smartEraseAndReplace(
   // ========================================
   // Phase 1: 安全なトークンのみ消去・置換
   // ========================================
+
+  // ImageDataを直接操作する（Blob消去用）
+  let imageDataModified = false;
+
   for (const detection of detections) {
     const { text, bbox, fontStyle } = detection;
 
@@ -442,19 +682,58 @@ export function smartEraseAndReplace(
     const isSmallBox = bbox.height < smallBoxThreshold || bbox.width < smallBoxThreshold;
     const padding = isSmallBox ? 1 : basePadding;
 
-    // 消去矩形を計算
-    const eraseRect = calculateEraseRect(
-      bbox,
-      padding,
-      imageData,
-      canvasWidth,
-      canvasHeight,
-      minBrightness
-    );
+    // Step 1: Smart Blob Erasure を試行
+    const blobResult = floodFillErase(imageData, bbox, padding);
 
-    // 拡張矩形全体を塗りつぶし（消しカス防止）
-    ctx.fillStyle = eraseRect.fillColor;
-    ctx.fillRect(eraseRect.x1, eraseRect.y1, eraseRect.fillWidth, eraseRect.fillHeight);
+    let eraseSuccess = false;
+    let centroidX = bbox.x + bbox.width / 2;
+    let centroidY = bbox.y + bbox.height / 2;
+    let effectiveBlobHeight = bbox.height;
+
+    if (blobResult.success && blobResult.erasedPixels.size > 0) {
+      // Flood-Fill 成功: Dilation でエッジを消去
+      const dilatedPixels = dilateErasedArea(
+        blobResult.erasedPixels,
+        canvasWidth,
+        canvasHeight,
+        1 // 1px dilation
+      );
+
+      // 背景色を推定（ボーダーから）
+      const bgColor = sampleBrightestBorderColor(imageData, bbox, padding, canvasWidth, canvasHeight);
+      const fillColor = (bgColor.luminance < minBrightness)
+        ? { r: 255, g: 255, b: 255 }
+        : { r: bgColor.r, g: bgColor.g, b: bgColor.b };
+
+      // ImageDataに直接書き込み
+      applyBlobErasure(ctx, imageData, dilatedPixels, fillColor);
+      imageDataModified = true;
+
+      // 重心を使用して配置位置を決定
+      centroidX = blobResult.centroidX;
+      centroidY = blobResult.centroidY;
+      effectiveBlobHeight = blobResult.blobHeight;
+      eraseSuccess = true;
+
+      console.log(`[BlobErase] OK: "${text}" - ${blobResult.erasedPixels.size}px erased, centroid=(${centroidX.toFixed(1)}, ${centroidY.toFixed(1)})`);
+    }
+
+    if (!eraseSuccess) {
+      // Flood-Fill 失敗: 従来の矩形マスキングにフォールバック
+      console.log(`[BlobErase] Fallback: "${text}" - using rectangle mask`);
+
+      const eraseRect = calculateEraseRect(
+        bbox,
+        padding,
+        imageData,
+        canvasWidth,
+        canvasHeight,
+        minBrightness
+      );
+
+      // 矩形塗りつぶし（ImageData変更後にcontextで描画すると上書きされるので、後で別途処理）
+      // ここでは一旦スキップし、後でcontextで描画
+    }
 
     // 新しいランダム数字を生成
     const newNumber = generateDifferentNumber(text);
@@ -463,16 +742,63 @@ export function smartEraseAndReplace(
     // フォントプリセットを取得
     const preset = getFontPreset(fontStyle);
 
-    // フォントサイズを計算（bboxに収まるよう調整）
-    const calculatedFontSize = Math.round(bbox.height * 0.9);
+    // フォントサイズを計算（blob高さまたはbboxに収まるよう調整）
+    // NOTE: 0.75係数でより自然なサイズに（0.9は大きすぎた）
+    const calculatedFontSize = Math.round(effectiveBlobHeight * 0.75);
     const fontSize = Math.max(calculatedFontSize, minFontSize);
 
     drawInfos.push({
-      detection,
+      detection: {
+        ...detection,
+        // 重心座標で上書き（blobがあれば）
+        bbox: eraseSuccess ? {
+          x: centroidX - bbox.width / 2,
+          y: centroidY - bbox.height / 2,
+          width: bbox.width,
+          height: bbox.height,
+        } : bbox,
+      },
       newNumber,
       preset,
       fontSize,
     });
+  }
+
+  // ImageDataの変更をCanvasに反映
+  if (imageDataModified) {
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  // Fallback用の矩形マスキング（blob消去に失敗した検出に対して）
+  for (const { detection } of drawInfos) {
+    const { bbox, text } = detection;
+
+    // blob消去に成功したものはスキップ（既に消去済み）
+    // 失敗したものだけ矩形マスキング
+    const blobResult = floodFillErase(
+      ctx.getImageData(
+        Math.max(0, Math.floor(bbox.x - basePadding)),
+        Math.max(0, Math.floor(bbox.y - basePadding)),
+        Math.ceil(bbox.width + basePadding * 2),
+        Math.ceil(bbox.height + basePadding * 2)
+      ),
+      { x: basePadding, y: basePadding, width: bbox.width, height: bbox.height },
+      1
+    );
+
+    // まだインクが残っていれば矩形で消す
+    if (blobResult.erasedPixels.size > 0) {
+      const eraseRect = calculateEraseRect(
+        bbox,
+        basePadding,
+        ctx.getImageData(0, 0, canvasWidth, canvasHeight),
+        canvasWidth,
+        canvasHeight,
+        minBrightness
+      );
+      ctx.fillStyle = eraseRect.fillColor;
+      ctx.fillRect(eraseRect.x1, eraseRect.y1, eraseRect.fillWidth, eraseRect.fillHeight);
+    }
   }
 
   // ========================================
