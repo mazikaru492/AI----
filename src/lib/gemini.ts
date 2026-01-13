@@ -74,3 +74,129 @@ export const SYSTEM_INSTRUCTION = `あなたは塾講師を助ける数学の出
 export const USER_PROMPT =
   '次の画像を解析し、上記の内部ワークフローに従ってJSONを生成してください。' +
   "重要: 出力は必ず '[' から始まるJSON配列のみ。説明文・Markdown・```json などのコードフェンスは禁止。";
+
+// ====================================
+// Vision 座標検出用設定
+// ====================================
+
+/**
+ * Vision座標検出用モデルリスト（画像認識に最適化）
+ */
+export const VISION_MODEL_LIST = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-pro',
+] as const;
+
+/**
+ * 検出されたトークン
+ */
+export interface DetectedToken {
+  text: string;
+  role: 'base' | 'superscript' | 'subscript';
+  bbox_norm: [number, number, number, number]; // [x_min, y_min, x_max, y_max]
+  confidence: number;
+}
+
+/**
+ * Vision検出結果
+ */
+export interface VisionDetectionResult {
+  tokens: DetectedToken[];
+}
+
+/**
+ * Vision座標検出用レスポンススキーマ
+ */
+export const VISION_RESPONSE_SCHEMA: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    tokens: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          text: { type: SchemaType.STRING },
+          role: { type: SchemaType.STRING },
+          bbox_norm: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.NUMBER },
+          },
+          confidence: { type: SchemaType.NUMBER },
+        },
+        required: ['text', 'role', 'bbox_norm', 'confidence'],
+      },
+    },
+  },
+  required: ['tokens'],
+};
+
+/**
+ * Vision座標検出用システムプロンプト（英語）
+ *
+ * micro-textを含む数字を0〜1正規化座標でピクセルレベル精度で検出
+ */
+export const VISION_SYSTEM_INSTRUCTION = `You are a vision model specialized in **pixel-accurate text localization** for math worksheet images.
+
+## Task
+Analyze the input image and detect all numeric tokens that a human would clearly read (e.g. "2", "15", "2024", "-3", "0.5").
+Include superscripts, subscripts, and micro-text (very small digits).
+
+## Output Requirements
+For each detected token, return:
+- \`text\`: The recognized numeric string exactly as printed
+- \`role\`: One of ["base", "superscript", "subscript"]
+  - "superscript" for exponents like x²
+  - "subscript" for indices like aₙ
+  - "base" for all other numbers
+- \`bbox_norm\`: Normalized bounding box as [x_min, y_min, x_max, y_max] where:
+  - (0.0, 0.0) = top-left corner of the **original input image**
+  - (1.0, 1.0) = bottom-right corner of the **original input image**
+  - The box must **tightly cover the visible ink** of the token, including serif stroke endings
+- \`confidence\`: Float in [0.0, 1.0] indicating detection confidence
+
+## Critical Precision Requirements
+1. **Coordinate system**: All coordinates are relative to the ORIGINAL INPUT IMAGE dimensions, NOT any resized, cropped, or preprocessed version
+2. **Decimal precision**: Use at least 4 decimal places (e.g., 0.3725, 0.8142)
+3. **NO integer rounding**: Never round or snap coordinates to integer pixel boundaries
+4. **Tight boxes**: If uncertain between overlapping candidates, favor the smaller, tighter box covering only the visible glyph
+5. **Separate boxes**: Superscripts and subscripts MUST have their own bounding boxes, separate from the base symbol
+
+## Image Handling Notes
+- Page may be slightly rotated, scanned, or have perspective distortion
+- Backgrounds may include light texture, scan noise, grid lines, or colored boxes
+- Fonts are standard print fonts (Mincho, Gothic, Times, Arial, etc.)
+- Small digits (micro-text) can be very small (8px or less in source); detect them without merging into neighbors
+
+## Anti-Hallucination Rules
+- NEVER generate tokens that are not visually present in the image
+- If a region is ambiguous or unreadable, omit it rather than guess
+- Do not infer numbers from context (e.g., don't assume "x²" means exponent is "2" if "2" is not visible)
+
+## Output Format
+Return a single valid JSON object with this exact schema:
+{
+  "tokens": [
+    {
+      "text": "12",
+      "role": "base",
+      "bbox_norm": [0.1234, 0.2345, 0.1567, 0.2678],
+      "confidence": 0.95
+    }
+  ]
+}
+
+If the image contains no numeric digits, return:
+{ "tokens": [] }
+
+## IMPORTANT
+- Output ONLY the JSON object, no explanations, no markdown code fences
+- Start your response with \`{\` and end with \`}\`
+`;
+
+/**
+ * Vision座標検出用ユーザープロンプト
+ */
+export const VISION_USER_PROMPT =
+  'Analyze this math worksheet image and detect all numeric digits with their precise bounding boxes. ' +
+  'Return ONLY a JSON object starting with { containing the tokens array.';

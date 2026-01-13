@@ -5,12 +5,17 @@
 
 import type { BoundingBox, NumberReplacement } from '@/types';
 
+// High-DPI対応ユーティリティをre-export
+export * from './hiDpiCanvas';
+export * from './backgroundMask';
+
 /**
- * 画像をCanvasに描画
+ * 画像をCanvasに描画（レガシー版、互換性のため維持）
  * @param canvas - 対象のCanvas要素
  * @param img - 描画する画像
  * @param maxWidth - 最大幅（デフォルト: 600）
  * @returns scale - 適用されたスケール
+ * @deprecated High-DPI対応が必要な場合は drawImageToHiDPICanvas を使用してください
  */
 export function drawImageToCanvas(
   canvas: HTMLCanvasElement,
