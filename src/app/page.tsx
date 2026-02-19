@@ -187,12 +187,14 @@ export default function Home() {
           }),
         ]);
         const geminiData = (await geminiRes.json()) as DetectionResponse;
-        const glmData = (await glmRes.json()) as DetectionResponse;
+        const glmData = glmRes.ok
+          ? ((await glmRes.json()) as DetectionResponse)
+          : null; // GLM-OCR 失敗時はプレーン Gemini でフォールバック
         if (!geminiRes.ok)
           throw new Error(geminiData.error || "検出に失敗しました");
 
         // GLM-OCR の役割情報で Gemini の座標を強化
-        const glmTokens = glmData.rawLatex
+        const glmTokens = glmData?.rawLatex
           ? analyzeGlmOcrResponse(glmData.rawLatex).tokens
           : [];
         detectedNumbers =
@@ -223,7 +225,7 @@ export default function Home() {
 
       if (!detectedNumbers || detectedNumbers.length === 0) {
         throw new Error(
-          "数字が検出されませんでした。別の画像をお試しください。",
+          "数字が検出されませんでした。数字を含む教科書・問題集の画像をお試しください。",
         );
       }
 
@@ -265,7 +267,11 @@ export default function Home() {
       setStatusMessage("画像を生成中...");
       const blob = await canvasToBlob(canvas);
       const resultUrl = URL.createObjectURL(blob);
-      setProcessedUrl(resultUrl);
+      // 旧 processedUrl があれば事前に revoke（メモリリーク防止）
+      setProcessedUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return resultUrl;
+      });
 
       // API使用量をインクリメント
       incrementApiUsage?.();

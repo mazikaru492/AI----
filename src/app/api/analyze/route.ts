@@ -138,10 +138,35 @@ export async function POST(request: Request) {
         headers: { "Ocp-Apim-Subscription-Key": key },
       });
 
-      const pollData = (await pollRes.json()) as AzureOperationResponse;
+      // HTTP レベルのエラーを先にチェック（非200でもJSONパースを試みるとクラッシュする）
+      if (!pollRes.ok) {
+        const errText = await pollRes.text();
+        return NextResponse.json(
+          { error: `ポーリング失敗 (${pollRes.status}): ${errText}` },
+          { status: pollRes.status },
+        );
+      }
+
+      let pollData: AzureOperationResponse;
+      try {
+        pollData = (await pollRes.json()) as AzureOperationResponse;
+      } catch {
+        return NextResponse.json(
+          { error: "Azure のレスポンスが不正な JSON です" },
+          { status: 502 },
+        );
+      }
+
       console.log(`[Azure DI] Poll ${attempt + 1}: ${pollData.status}`);
 
       if (pollData.status === "succeeded") {
+        // succeededでもanalyzeResultが欠落しているケースを防ぐ
+        if (!pollData.analyzeResult) {
+          return NextResponse.json(
+            { error: "Azure レスポンスに analyzeResult がありません" },
+            { status: 502 },
+          );
+        }
         analyzeResult = pollData.analyzeResult;
         break;
       }
@@ -165,12 +190,17 @@ export async function POST(request: Request) {
     // ============================================
     const numbers: PolygonWord[] = [];
 
-    for (const page of analyzeResult.pages) {
-      for (const word of page.words) {
+    for (const page of analyzeResult.pages ?? []) {
+      // wordsが存在しないページも安全にスキップ
+      for (const word of page.words ?? []) {
         if (
+          typeof word.content === "string" &&
           INTEGER_RE.test(word.content) &&
+          typeof word.confidence === "number" &&
           word.confidence >= 0.5 &&
-          word.polygon?.length === 8
+          Array.isArray(word.polygon) &&
+          word.polygon.length === 8 &&
+          word.polygon.every((v) => typeof v === "number" && isFinite(v))
         ) {
           numbers.push({
             text: word.content,
