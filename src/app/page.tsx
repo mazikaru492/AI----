@@ -1,10 +1,25 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Download, ImageIcon, Loader2, Sparkles, X } from 'lucide-react';
-import { useAppShell } from '@/components/AppShell';
-import { AdBanner } from '@/components/ads/AdBanner';
-import { smartEraseAndReplace, canvasToBlob, type DetectedNumber } from '@/lib/smartErase';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Camera,
+  Download,
+  ImageIcon,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useAppShell } from "@/components/AppShell";
+import { AdBanner } from "@/components/ads/AdBanner";
+import {
+  smartEraseAndReplace,
+  canvasToBlob,
+  type DetectedNumber,
+} from "@/lib/smartErase";
+import {
+  mergeGlmOcrWithCoordinates,
+  analyzeGlmOcrResponse,
+} from "@/lib/glmOcrParser";
 
 // =====================================
 // Types
@@ -13,8 +28,12 @@ import { smartEraseAndReplace, canvasToBlob, type DetectedNumber } from '@/lib/s
 interface DetectionResponse {
   numbers: DetectedNumber[];
   success: boolean;
+  rawLatex?: string;
   error?: string;
 }
+
+/** 検出エンジンの種類 */
+type DetectionEngine = "gemini" | "glm-ocr" | "hybrid";
 
 // =====================================
 // Component
@@ -30,7 +49,9 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState("");
+  /** 検出エンジン切り替え */
+  const [engine, setEngine] = useState<DetectionEngine>("hybrid");
 
   // AppShell context
   const shell = useAppShell();
@@ -59,19 +80,22 @@ export default function Home() {
   }, [processedUrl]);
 
   // ファイル選択
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setImageFile(file);
-    setProcessedUrl(null);
-    setError(null);
-  }, []);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0] ?? null;
+      setImageFile(file);
+      setProcessedUrl(null);
+      setError(null);
+    },
+    [],
+  );
 
   // ファイルをクリア
   const clearFile = useCallback(() => {
     setImageFile(null);
     setProcessedUrl(null);
     setError(null);
-    if (inputRef.current) inputRef.current.value = '';
+    if (inputRef.current) inputRef.current.value = "";
   }, []);
 
   // 数字検出 + Smart Erase 処理
@@ -87,15 +111,15 @@ export default function Home() {
       const SCALE_FACTOR = 2;
 
       // Step 1: 画像をCanvasに描画（High-DPI対応）
-      setStatusMessage('画像を読み込み中...');
+      setStatusMessage("画像を読み込み中...");
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context を取得できませんでした');
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context を取得できませんでした");
 
       const img = new Image();
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
-        img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+        img.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
         img.src = URL.createObjectURL(imageFile);
       });
 
@@ -115,39 +139,96 @@ export default function Home() {
 
       // Step 2: 画像データをBase64に変換（元のサイズで）
       // APIに送信する画像は元のサイズを使用（座標の正規化のため）
-      setStatusMessage('数字を検出中...');
-      const tempCanvas = document.createElement('canvas');
+      setStatusMessage("数字を検出中...");
+      const tempCanvas = document.createElement("canvas");
       tempCanvas.width = originalWidth;
       tempCanvas.height = originalHeight;
-      const tempCtx = tempCanvas.getContext('2d');
-      if (!tempCtx) throw new Error('Temp canvas context を取得できませんでした');
+      const tempCtx = tempCanvas.getContext("2d");
+      if (!tempCtx)
+        throw new Error("Temp canvas context を取得できませんでした");
       tempCtx.drawImage(img, 0, 0);
-      const base64 = tempCanvas.toDataURL('image/png').split(',')[1];
+      const base64 = tempCanvas.toDataURL("image/png").split(",")[1];
 
-      // Step 3: Gemini API で数字検出
-      const response = await fetch('/api/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: base64,
-          mimeType: 'image/png',
-          imageWidth: originalWidth,
-          imageHeight: originalHeight,
-        }),
+      const apiPayload = JSON.stringify({
+        imageBase64: base64,
+        mimeType: "image/png",
+        imageWidth: originalWidth,
+        imageHeight: originalHeight,
       });
 
-      const data = (await response.json()) as DetectionResponse;
+      // Step 3: 選択されたエンジンで数字検出
+      let detectedNumbers: DetectedNumber[];
 
-      if (!response.ok) {
-        throw new Error(data.error || `検出に失敗しました (${response.status})`);
+      if (engine === "glm-ocr") {
+        // GLM-OCR のみ（LaTeX 構造解析 + 座標はダミー）
+        setStatusMessage("GLM-OCR で検出中...");
+        const glmRes = await fetch("/api/glm-ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: apiPayload,
+        });
+        const glmData = (await glmRes.json()) as DetectionResponse;
+        if (!glmRes.ok)
+          throw new Error(glmData.error || "GLM-OCR 検出に失敗しました");
+        detectedNumbers = glmData.numbers;
+      } else if (engine === "hybrid") {
+        // ハイブリッド: Gemini で座標取得 + GLM-OCR で役割精度向上
+        setStatusMessage("Gemini で座標を検出中...");
+        const [geminiRes, glmRes] = await Promise.all([
+          fetch("/api/detect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: apiPayload,
+          }),
+          fetch("/api/glm-ocr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: apiPayload,
+          }),
+        ]);
+        const geminiData = (await geminiRes.json()) as DetectionResponse;
+        const glmData = (await glmRes.json()) as DetectionResponse;
+        if (!geminiRes.ok)
+          throw new Error(geminiData.error || "検出に失敗しました");
+
+        // GLM-OCR の役割情報で Gemini の座標を強化
+        const glmTokens = glmData.rawLatex
+          ? analyzeGlmOcrResponse(glmData.rawLatex).tokens
+          : [];
+        detectedNumbers =
+          glmTokens.length > 0
+            ? mergeGlmOcrWithCoordinates(geminiData.numbers, glmTokens)
+            : geminiData.numbers;
+        console.log(
+          "[Hybrid] GLM tokens:",
+          glmTokens.length,
+          "Gemini nums:",
+          geminiData.numbers.length,
+        );
+      } else {
+        // Gemini のみ（既存の動作）
+        setStatusMessage("Gemini で検出中...");
+        const response = await fetch("/api/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: apiPayload,
+        });
+        const data = (await response.json()) as DetectionResponse;
+        if (!response.ok)
+          throw new Error(
+            data.error || `検出に失敗しました (${response.status})`,
+          );
+        detectedNumbers = data.numbers;
       }
 
-      if (!data.numbers || data.numbers.length === 0) {
-        throw new Error('数字が検出されませんでした。別の画像をお試しください。');
+      if (!detectedNumbers || detectedNumbers.length === 0) {
+        throw new Error(
+          "数字が検出されませんでした。別の画像をお試しください。",
+        );
       }
 
       // Step 4: 座標をスケールファクターで調整（全フィールドを保持）
-      const scaledNumbers = data.numbers.map(n => ({
+      const scaledNumbers = detectedNumbers.map((n) => ({
         text: n.text,
         bbox: {
           x: n.bbox.x * SCALE_FACTOR,
@@ -160,7 +241,7 @@ export default function Home() {
         fontStyle: n.fontStyle,
         role: n.role,
         parentChar: n.parentChar,
-        charBboxes: n.charBboxes?.map(cb => ({
+        charBboxes: n.charBboxes?.map((cb) => ({
           char: cb.char,
           xmin: cb.xmin * SCALE_FACTOR,
           xmax: cb.xmax * SCALE_FACTOR,
@@ -168,36 +249,38 @@ export default function Home() {
       }));
 
       // Step 5: Smart Erase + Random Number Replacement 実行
-      setStatusMessage(`${data.numbers.length} 個の数字を変換中...`);
+      setStatusMessage(`${detectedNumbers.length} 個の数字を変換中...`);
       const replacements = smartEraseAndReplace(ctx, scaledNumbers, {
         padding: 2 * SCALE_FACTOR,
         minBrightness: 200,
         minFontSize: 10 * SCALE_FACTOR,
         smallBoxThreshold: 20 * SCALE_FACTOR,
       });
-      console.log('[processImage] Replacements:', Object.fromEntries(replacements));
+      console.log(
+        "[processImage] Replacements:",
+        Object.fromEntries(replacements),
+      );
 
       // Step 6: 結果を生成
-      setStatusMessage('画像を生成中...');
+      setStatusMessage("画像を生成中...");
       const blob = await canvasToBlob(canvas);
       const resultUrl = URL.createObjectURL(blob);
       setProcessedUrl(resultUrl);
 
       // API使用量をインクリメント
       incrementApiUsage?.();
-
     } catch (e) {
-      setError(e instanceof Error ? e.message : '不明なエラーが発生しました');
+      setError(e instanceof Error ? e.message : "不明なエラーが発生しました");
     } finally {
       setIsProcessing(false);
-      setStatusMessage('');
+      setStatusMessage("");
     }
-  }, [imageFile, incrementApiUsage]);
+  }, [imageFile, engine, incrementApiUsage]);
 
   // ダウンロード処理
   const handleDownload = useCallback(() => {
     if (!processedUrl) return;
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = processedUrl;
     a.download = `erased-${Date.now()}.png`;
     document.body.appendChild(a);
@@ -207,8 +290,9 @@ export default function Home() {
 
   // 使用量のステータス色
   const usageStatusColor = useMemo(
-    () => (apiUsageCount < apiUsageLimit * 0.8 ? 'bg-[#34C759]' : 'bg-[#FF9500]'),
-    [apiUsageCount, apiUsageLimit]
+    () =>
+      apiUsageCount < apiUsageLimit * 0.8 ? "bg-[#34C759]" : "bg-[#FF9500]",
+    [apiUsageCount, apiUsageLimit],
   );
 
   return (
@@ -218,15 +302,17 @@ export default function Home() {
         <div
           className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-40"
           style={{
-            background: 'radial-gradient(circle, rgba(0,122,255,0.15) 0%, transparent 70%)',
-            filter: 'blur(60px)',
+            background:
+              "radial-gradient(circle, rgba(0,122,255,0.15) 0%, transparent 70%)",
+            filter: "blur(60px)",
           }}
         />
         <div
           className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full opacity-30"
           style={{
-            background: 'radial-gradient(circle, rgba(52,199,89,0.15) 0%, transparent 70%)',
-            filter: 'blur(60px)',
+            background:
+              "radial-gradient(circle, rgba(52,199,89,0.15) 0%, transparent 70%)",
+            filter: "blur(60px)",
           }}
         />
       </div>
@@ -237,7 +323,9 @@ export default function Home() {
       <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
         {/* タイトル */}
         <div className="text-center pt-2">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">AI問題変換</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            AI問題変換
+          </h1>
           <p className="text-sm text-slate-600 mt-1">
             問題用紙を撮影すると、数値だけ変えた類題を作成します
           </p>
@@ -317,7 +405,40 @@ export default function Home() {
 
           {/* 生成ボタン - 画像がある時のみ表示 */}
           {imageFile && !processedUrl && (
-            <div className="p-4 pt-0">
+            <div className="p-4 pt-0 flex flex-col gap-3">
+              {/* エンジン切り替えセグメントコントロール */}
+              <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-slate-100 p-0.5 gap-0.5">
+                {(
+                  [
+                    { value: "gemini", label: "Gemini", desc: "高速" },
+                    {
+                      value: "hybrid",
+                      label: "ハイブリッド",
+                      desc: "おすすめ",
+                    },
+                    { value: "glm-ocr", label: "GLM-OCR", desc: "高精度" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setEngine(opt.value)}
+                    disabled={isProcessing}
+                    className={`flex-1 flex flex-col items-center py-1.5 rounded-[10px] text-xs font-medium transition-all duration-150 ${
+                      engine === opt.value
+                        ? "bg-white text-[#007AFF] shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    <span
+                      className={`text-[10px] ${engine === opt.value ? "text-[#007AFF]/60" : "text-slate-400"}`}
+                    >
+                      {opt.desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={processImage}
@@ -333,14 +454,14 @@ export default function Home() {
                 {!isProcessing && (
                   <div
                     className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                    style={{ animation: 'scanning 2s ease-in-out infinite' }}
+                    style={{ animation: "scanning 2s ease-in-out infinite" }}
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-2">
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {statusMessage || '処理中...'}
+                      {statusMessage || "処理中..."}
                     </>
                   ) : (
                     <>
