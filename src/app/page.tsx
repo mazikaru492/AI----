@@ -16,10 +16,6 @@ import {
   canvasToBlob,
   type DetectedNumber,
 } from "@/lib/smartErase";
-import {
-  mergeGlmOcrWithCoordinates,
-  analyzeGlmOcrResponse,
-} from "@/lib/glmOcrParser";
 
 // =====================================
 // Types
@@ -28,12 +24,8 @@ import {
 interface DetectionResponse {
   numbers: DetectedNumber[];
   success: boolean;
-  rawLatex?: string;
   error?: string;
 }
-
-/** 検出エンジンの種類 */
-type DetectionEngine = "gemini" | "glm-ocr" | "hybrid";
 
 // =====================================
 // Component
@@ -50,8 +42,6 @@ export default function Home() {
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
-  /** 検出エンジン切り替え */
-  const [engine, setEngine] = useState<DetectionEngine>("hybrid");
 
   // AppShell context
   const shell = useAppShell();
@@ -156,72 +146,18 @@ export default function Home() {
         imageHeight: originalHeight,
       });
 
-      // Step 3: 選択されたエンジンで数字検出
-      let detectedNumbers: DetectedNumber[];
-
-      if (engine === "glm-ocr") {
-        // GLM-OCR のみ（LaTeX 構造解析 + 座標はダミー）
-        setStatusMessage("GLM-OCR で検出中...");
-        const glmRes = await fetch("/api/glm-ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: apiPayload,
-        });
-        const glmData = (await glmRes.json()) as DetectionResponse;
-        if (!glmRes.ok)
-          throw new Error(glmData.error || "GLM-OCR 検出に失敗しました");
-        detectedNumbers = glmData.numbers;
-      } else if (engine === "hybrid") {
-        // ハイブリッド: Gemini で座標取得 + GLM-OCR で役割精度向上
-        setStatusMessage("Gemini で座標を検出中...");
-        const [geminiRes, glmRes] = await Promise.all([
-          fetch("/api/detect", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: apiPayload,
-          }),
-          fetch("/api/glm-ocr", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: apiPayload,
-          }),
-        ]);
-        const geminiData = (await geminiRes.json()) as DetectionResponse;
-        const glmData = glmRes.ok
-          ? ((await glmRes.json()) as DetectionResponse)
-          : null; // GLM-OCR 失敗時はプレーン Gemini でフォールバック
-        if (!geminiRes.ok)
-          throw new Error(geminiData.error || "検出に失敗しました");
-
-        // GLM-OCR の役割情報で Gemini の座標を強化
-        const glmTokens = glmData?.rawLatex
-          ? analyzeGlmOcrResponse(glmData.rawLatex).tokens
-          : [];
-        detectedNumbers =
-          glmTokens.length > 0
-            ? mergeGlmOcrWithCoordinates(geminiData.numbers, glmTokens)
-            : geminiData.numbers;
-        console.log(
-          "[Hybrid] GLM tokens:",
-          glmTokens.length,
-          "Gemini nums:",
-          geminiData.numbers.length,
+      // Step 3: Gemini で数字検出
+      const response = await fetch("/api/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: apiPayload,
+      });
+      const data = (await response.json()) as DetectionResponse;
+      if (!response.ok)
+        throw new Error(
+          data.error || `検出に失敗しました (${response.status})`,
         );
-      } else {
-        // Gemini のみ（既存の動作）
-        setStatusMessage("Gemini で検出中...");
-        const response = await fetch("/api/detect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: apiPayload,
-        });
-        const data = (await response.json()) as DetectionResponse;
-        if (!response.ok)
-          throw new Error(
-            data.error || `検出に失敗しました (${response.status})`,
-          );
-        detectedNumbers = data.numbers;
-      }
+      const detectedNumbers = data.numbers;
 
       if (!detectedNumbers || detectedNumbers.length === 0) {
         throw new Error(
@@ -281,7 +217,7 @@ export default function Home() {
       setIsProcessing(false);
       setStatusMessage("");
     }
-  }, [imageFile, engine, incrementApiUsage]);
+  }, [imageFile, incrementApiUsage]);
 
   // ダウンロード処理
   const handleDownload = useCallback(() => {
@@ -412,39 +348,6 @@ export default function Home() {
           {/* 生成ボタン - 画像がある時のみ表示 */}
           {imageFile && !processedUrl && (
             <div className="p-4 pt-0 flex flex-col gap-3">
-              {/* エンジン切り替えセグメントコントロール */}
-              <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-slate-100 p-0.5 gap-0.5">
-                {(
-                  [
-                    { value: "gemini", label: "Gemini", desc: "高速" },
-                    {
-                      value: "hybrid",
-                      label: "ハイブリッド",
-                      desc: "おすすめ",
-                    },
-                    { value: "glm-ocr", label: "GLM-OCR", desc: "高精度" },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setEngine(opt.value)}
-                    disabled={isProcessing}
-                    className={`flex-1 flex flex-col items-center py-1.5 rounded-[10px] text-xs font-medium transition-all duration-150 ${
-                      engine === opt.value
-                        ? "bg-white text-[#007AFF] shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                    <span
-                      className={`text-[10px] ${engine === opt.value ? "text-[#007AFF]/60" : "text-slate-400"}`}
-                    >
-                      {opt.desc}
-                    </span>
-                  </button>
-                ))}
-              </div>
               <button
                 type="button"
                 onClick={processImage}
