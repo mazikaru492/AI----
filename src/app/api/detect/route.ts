@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GEMINI_MODEL_LIST } from "@/lib/gemini";
+import {
+  analyzeGlmOcrResponse,
+  mergeGlmOcrWithCoordinates,
+  type LatexToken,
+} from "@/lib/glmOcrParser";
+import type {
+  DetectedNumber,
+  TextRole,
+  FontStyle,
+  CharBbox,
+} from "@/lib/smartErase";
 
 export const runtime = "nodejs";
 
@@ -9,48 +20,6 @@ interface DetectRequest {
   mimeType: string;
   imageWidth: number;
   imageHeight: number;
-}
-
-/**
- * 文字ごとのバウンディングボックス（カーニング再現用）
- */
-interface CharBbox {
-  char: string;
-  xmin: number;
-  xmax: number;
-}
-
-/**
- * フォントスタイル分類
- */
-type FontStyle = 'maru-gothic' | 'gothic' | 'mincho' | 'handwritten';
-
-/**
- * 文字の役割（上付き/下付き/通常）
- */
-type TextRole = 'base' | 'sup' | 'sub';
-
-/**
- * 検出された数値（ピクセル座標付き）
- */
-interface DetectedNumber {
-  text: string;
-  bbox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  /** テキストのベースライン位置（ピクセル） */
-  baselineY?: number;
-  /** 推定されたフォントスタイル */
-  fontStyle?: FontStyle;
-  /** 文字の役割（通常/上付き/下付き） */
-  role?: TextRole;
-  /** 親文字（上付き・下付きの場合のみ） */
-  parentChar?: string;
-  /** 各文字の個別バウンディングボックス */
-  charBboxes?: CharBbox[];
 }
 
 interface DetectResult {
@@ -184,7 +153,6 @@ function parseDetectionResult(
         : undefined;
 
       // 文字役割の検証（Structure-First形式 → smartErase形式にマッピング）
-      // exponent → sup, subscript → sub, それ以外 → base
       let role: TextRole = 'base';
       if (n.role) {
         const roleStr = n.role.toLowerCase();
@@ -192,9 +160,10 @@ function parseDetectionResult(
           role = 'sup';
         } else if (roleStr === 'subscript' || roleStr === 'sub') {
           role = 'sub';
-        } else if (roleStr === 'numerator' || roleStr === 'denominator') {
-          // 分数の場合もbase扱い（位置はbboxで判定されるため）
-          role = 'base';
+        } else if (roleStr === 'numerator') {
+          role = 'fraction-num';
+        } else if (roleStr === 'denominator') {
+          role = 'fraction-den';
         }
         // coefficient, constant, base, その他 → base
       }
@@ -229,6 +198,86 @@ function parseDetectionResult(
   }
 }
 
+// ====================================
+// GLM-OCR ハイブリッド統合
+// ====================================
+
+/** Z.AI layout_parsing エンドポイント */
+const ZAI_API_URL = "https://api.z.ai/api/paas/v4/layout_parsing";
+const GLM_OCR_MODEL = "glm-ocr";
+
+interface LayoutParsingResponse {
+  id: string;
+  content: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+/**
+ * GLM-OCR で LaTeX 構造を取得
+ * エラー時は空配列を返す（フォールバック）
+ */
+async function getGlmOcrTokens(
+  imageBase64: string,
+  mimeType: string,
+): Promise<LatexToken[]> {
+  const apiKey = process.env.ZAI_API_KEY;
+  if (!apiKey) {
+    console.log("[GLM-OCR] ZAI_API_KEY not set, skipping GLM-OCR");
+    return [];
+  }
+
+  try {
+    const fileDataUri = `data:${mimeType || "image/png"};base64,${imageBase64}`;
+
+    console.log("[GLM-OCR] Sending request to Z.AI layout_parsing...");
+
+    const response = await fetch(ZAI_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GLM_OCR_MODEL,
+        file: fileDataUri,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[GLM-OCR] Z.AI error:", response.status, errorText);
+      return [];
+    }
+
+    const glmResponse = (await response.json()) as LayoutParsingResponse;
+
+    if (glmResponse.error || !glmResponse.content) {
+      console.error("[GLM-OCR] API error:", glmResponse.error);
+      return [];
+    }
+
+    console.log(
+      "[GLM-OCR] Raw response (first 300 chars):",
+      glmResponse.content.substring(0, 300),
+    );
+
+    const { tokens } = analyzeGlmOcrResponse(glmResponse.content);
+    console.log(`[GLM-OCR] Extracted ${tokens.length} tokens`);
+    return tokens;
+  } catch (error) {
+    console.error("[GLM-OCR] Error:", error);
+    return [];
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as DetectRequest;
@@ -243,6 +292,9 @@ export async function POST(request: Request) {
 
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
+
+    // GLM-OCR を並列で呼び出し（座標マージ用）
+    const glmOcrPromise = getGlmOcrTokens(imageBase64, mimeType);
 
     for (const modelName of GEMINI_MODEL_LIST) {
       try {
@@ -266,8 +318,24 @@ export async function POST(request: Request) {
         const detection = parseDetectionResult(text, imageWidth, imageHeight);
 
         if (detection.success && detection.numbers.length > 0) {
-          console.log(`[Detect API] Found ${detection.numbers.length} numbers`);
-          return NextResponse.json(detection);
+          console.log(`[Detect API] Found ${detection.numbers.length} numbers from Gemini`);
+
+          // GLM-OCR の結果を待ってマージ
+          const glmTokens = await glmOcrPromise;
+          let finalNumbers = detection.numbers;
+
+          if (glmTokens.length > 0) {
+            console.log(`[Detect API] Merging with ${glmTokens.length} GLM-OCR tokens`);
+            finalNumbers = mergeGlmOcrWithCoordinates(detection.numbers, glmTokens);
+            console.log("[Detect API] Merged roles:",
+              finalNumbers.map(n => `${n.text}:${n.role}`).join(", "));
+          }
+
+          return NextResponse.json({
+            numbers: finalNumbers,
+            success: true,
+            glmOcrUsed: glmTokens.length > 0,
+          });
         }
 
         console.log("[Detect API] No numbers, trying next model...");
