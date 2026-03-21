@@ -100,14 +100,13 @@ Scale: 0-1000 (0,0 = top-left, 1000,1000 = bottom-right)
 
 Return ONLY raw JSON. No markdown, no explanations.`;
 
-
 /**
  * レスポンスをパースしてピクセル座標に変換
  */
 function parseDetectionResult(
   text: string,
   imageWidth: number,
-  imageHeight: number
+  imageHeight: number,
 ): DetectResult {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -147,34 +146,48 @@ function parseDetectionResult(
         : undefined;
 
       // フォントスタイルの検証
-      const validFontStyles = ['maru-gothic', 'gothic', 'mincho', 'handwritten'] as const;
-      const fontStyle = n.fontStyle && validFontStyles.includes(n.fontStyle as typeof validFontStyles[number])
-        ? (n.fontStyle as FontStyle)
-        : undefined;
+      const validFontStyles = [
+        "maru-gothic",
+        "gothic",
+        "mincho",
+        "handwritten",
+      ] as const;
+      const fontStyle =
+        n.fontStyle &&
+        validFontStyles.includes(
+          n.fontStyle as (typeof validFontStyles)[number],
+        )
+          ? (n.fontStyle as FontStyle)
+          : undefined;
 
       // 文字役割の検証（Structure-First形式 → smartErase形式にマッピング）
-      let role: TextRole = 'base';
+      let role: TextRole = "base";
       if (n.role) {
         const roleStr = n.role.toLowerCase();
-        if (roleStr === 'exponent' || roleStr === 'sup' || roleStr === 'superscript') {
-          role = 'sup';
-        } else if (roleStr === 'subscript' || roleStr === 'sub') {
-          role = 'sub';
-        } else if (roleStr === 'numerator') {
-          role = 'fraction-num';
-        } else if (roleStr === 'denominator') {
-          role = 'fraction-den';
+        if (
+          roleStr === "exponent" ||
+          roleStr === "sup" ||
+          roleStr === "superscript"
+        ) {
+          role = "sup";
+        } else if (roleStr === "subscript" || roleStr === "sub") {
+          role = "sub";
+        } else if (roleStr === "numerator") {
+          role = "fraction-num";
+        } else if (roleStr === "denominator") {
+          role = "fraction-den";
         }
         // coefficient, constant, base, その他 → base
       }
 
       // 親文字（上付き・下付きの場合のみ）
-      const parentChar = (role === 'sup' || role === 'sub') && n.parentChar
-        ? n.parentChar
-        : undefined;
+      const parentChar =
+        (role === "sup" || role === "sub") && n.parentChar
+          ? n.parentChar
+          : undefined;
 
       // 文字ごとのbboxをピクセル座標に変換
-      const charBboxes = n.charBboxes?.map(cb => ({
+      const charBboxes = n.charBboxes?.map((cb) => ({
         char: cb.char,
         xmin: Math.round((cb.xmin / 1000) * imageWidth),
         xmax: Math.round((cb.xmax / 1000) * imageWidth),
@@ -286,7 +299,7 @@ export async function POST(request: Request) {
     if (!imageBase64) {
       return NextResponse.json(
         { error: "imageBase64 is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -318,17 +331,26 @@ export async function POST(request: Request) {
         const detection = parseDetectionResult(text, imageWidth, imageHeight);
 
         if (detection.success && detection.numbers.length > 0) {
-          console.log(`[Detect API] Found ${detection.numbers.length} numbers from Gemini`);
+          console.log(
+            `[Detect API] Found ${detection.numbers.length} numbers from Gemini`,
+          );
 
           // GLM-OCR の結果を待ってマージ
           const glmTokens = await glmOcrPromise;
           let finalNumbers = detection.numbers;
 
           if (glmTokens.length > 0) {
-            console.log(`[Detect API] Merging with ${glmTokens.length} GLM-OCR tokens`);
-            finalNumbers = mergeGlmOcrWithCoordinates(detection.numbers, glmTokens);
-            console.log("[Detect API] Merged roles:",
-              finalNumbers.map(n => `${n.text}:${n.role}`).join(", "));
+            console.log(
+              `[Detect API] Merging with ${glmTokens.length} GLM-OCR tokens`,
+            );
+            finalNumbers = mergeGlmOcrWithCoordinates(
+              detection.numbers,
+              glmTokens,
+            );
+            console.log(
+              "[Detect API] Merged roles:",
+              finalNumbers.map((n) => `${n.text}:${n.role}`).join(", "),
+            );
           }
 
           return NextResponse.json({
@@ -347,7 +369,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { numbers: [], success: false, error: "No numbers detected" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
