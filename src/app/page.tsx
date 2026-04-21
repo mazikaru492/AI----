@@ -173,7 +173,7 @@ export default function Home() {
         imageHeight: detectionImg.height,
       });
 
-      // Step 3: Gemini で数字検出
+      // Step 3: GLM-OCR で数字検出
       const response = await fetch("/api/detect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,7 +182,9 @@ export default function Home() {
       const rawResponse = await response.text();
       let data: DetectionResponse | null = null;
       try {
-        data = rawResponse ? (JSON.parse(rawResponse) as DetectionResponse) : null;
+        data = rawResponse
+          ? (JSON.parse(rawResponse) as DetectionResponse)
+          : null;
       } catch {
         data = null;
       }
@@ -201,7 +203,9 @@ export default function Home() {
           .replace(/\s+/g, " ")
           .trim();
         const resolvedError =
-          data?.error || plainResponse || `検出に失敗しました (${response.status})`;
+          data?.error ||
+          plainResponse ||
+          `検出に失敗しました (${response.status})`;
         if (
           /request entity too large|payload too large|unexpected token.*request en/i.test(
             resolvedError,
@@ -211,9 +215,7 @@ export default function Home() {
             "画像サイズが大きすぎます。画像を小さくして再度お試しください。",
           );
         }
-        throw new Error(
-          resolvedError,
-        );
+        throw new Error(resolvedError);
       }
       if (!data) {
         throw new Error("サーバーから不正な形式のレスポンスが返されました。");

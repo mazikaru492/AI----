@@ -1,6 +1,6 @@
 /**
  * 画像圧縮ユーティリティ
- * Vercel 4.5MB制限とGemini API最適化のための画像圧縮処理
+ * Vercel 4.5MB制限とOCR API最適化のための画像圧縮処理
  */
 
 import imageCompression from "browser-image-compression";
@@ -24,7 +24,7 @@ type ImageCompressionOptions = NonNullable<
 
 async function compressWithOptions(
   file: File,
-  options: ImageCompressionOptions
+  options: ImageCompressionOptions,
 ) {
   const compressed = await imageCompression(file, options);
   return compressed as File;
@@ -62,7 +62,7 @@ export async function compressImage(file: File): Promise<File> {
   } catch (error) {
     console.warn("[imageCompression] compression failed", error);
     throw new Error(
-      "画像の最適化に失敗しました。別の画像でもう一度お試しください。"
+      "画像の最適化に失敗しました。別の画像でもう一度お試しください。",
     );
   }
 }

@@ -1,16 +1,9 @@
 /**
  * GLM-OCR レスポンスパーサー
  *
- * GLM-OCR（Z.AI）が返す LaTeX/Markdown テキストから
- * 数字（0-9）とその役割を抽出し、smartErase.ts で使う
- * DetectedNumber 形式に変換する。
- *
- * GLM-OCR は座標情報を返さないため、
- * 別途 Gemini Vision の座標と LaTeX の構造情報を組み合わせる
- * 「ハイブリッドモード」で使用する。
+ * GLM-OCR（Z.AI）が返す Markdown/LaTeX から、
+ * 数字トークンと数式上の役割を抽出する。
  */
-
-import type { DetectedNumber } from "./smartErase";
 
 // ====================================
 // Types
@@ -244,66 +237,11 @@ function addToken(
 }
 
 // ====================================
-// 座標マッチング
-// ====================================
-
-/**
- * Gemini の座標検出結果と GLM-OCR の LaTeX 構造を統合
- *
- * GLM-OCR は構造（役割）を正確に識別し、
- * Gemini は座標（bbox）を提供する。
- * 両者を text でマッチングして最良の DetectedNumber[] を返す。
- */
-export function mergeGlmOcrWithCoordinates(
-  geminiDetections: DetectedNumber[],
-  glmTokens: LatexToken[],
-): DetectedNumber[] {
-  // GLM-OCR の役割マップ: text → role（最も優先度の高い役割）
-  const roleMap = new Map<string, LatexToken["role"]>();
-
-  // 役割の優先度（複雑構造 > 通常）
-  const ROLE_PRIORITY: Record<LatexToken["role"], number> = {
-    "fraction-num": 10,
-    "fraction-den": 10,
-    "sqrt-content": 10,
-    "lim-sub": 10,
-    "sum-lower": 10,
-    "sum-upper": 10,
-    "int-lower": 10,
-    "int-upper": 10,
-    sup: 5,
-    sub: 5,
-    base: 1,
-  };
-
-  for (const token of glmTokens) {
-    const existing = roleMap.get(token.text);
-    const existingPriority = existing ? ROLE_PRIORITY[existing] : 0;
-    const newPriority = ROLE_PRIORITY[token.role];
-    if (newPriority > existingPriority) {
-      roleMap.set(token.text, token.role);
-    }
-  }
-
-  // Gemini の座標に GLM-OCR の役割を適用
-  return geminiDetections.map((d) => {
-    const glmRole = roleMap.get(d.text);
-    if (!glmRole) return d; // GLM-OCR に対応なし → そのまま
-
-    return {
-      ...d,
-      role: glmRole as DetectedNumber["role"],
-    };
-  });
-}
-
-// ====================================
 // GLM-OCR LaTeX 全文からの数字抽出
 // ====================================
 
 /**
  * GLM-OCR のレスポンス全文を解析し、LaTeX トークンを返す
- * （座標なし - mergeGlmOcrWithCoordinates で座標と統合する）
  */
 export function analyzeGlmOcrResponse(responseText: string): {
   tokens: LatexToken[];
