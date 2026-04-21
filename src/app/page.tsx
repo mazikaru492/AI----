@@ -32,7 +32,8 @@ interface DetectionResponse {
 // =====================================
 
 export default function Home() {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Core State
@@ -85,7 +86,16 @@ export default function Home() {
     setImageFile(null);
     setProcessedUrl(null);
     setError(null);
-    if (inputRef.current) inputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const openCameraPicker = useCallback(() => {
+    cameraInputRef.current?.click();
+  }, []);
+
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
   }, []);
 
   // 数字検出 + Smart Erase 処理
@@ -296,9 +306,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 隠しファイル入力 - capture属性なしでアルバム選択可能 */}
+        {/* デフォルトはカメラ起動 */}
         <input
-          ref={inputRef}
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* 追加のファイル選択 */}
+        <input
+          ref={fileInputRef}
           type="file"
           accept="image/*"
           className="hidden"
@@ -328,19 +348,28 @@ export default function Home() {
                 {/* 変更ボタン */}
                 <button
                   type="button"
-                  onClick={() => inputRef.current?.click()}
+                  onClick={openCameraPicker}
                   disabled={isProcessing}
                   className="absolute bottom-3 right-3 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-white transition-colors active:scale-95 disabled:opacity-50 shadow-lg"
                 >
+                  <Camera className="w-4 h-4" />
+                  撮り直し
+                </button>
+                <button
+                  type="button"
+                  onClick={openFilePicker}
+                  disabled={isProcessing}
+                  className="absolute bottom-3 left-3 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-white transition-colors active:scale-95 disabled:opacity-50 shadow-lg"
+                >
                   <ImageIcon className="w-4 h-4" />
-                  変更
+                  ファイル
                 </button>
               </div>
             ) : (
               // アップロード促進
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={openCameraPicker}
                 disabled={isProcessing}
                 className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-4 group transition-all duration-300 hover:bg-slate-50/50 active:scale-[0.98] disabled:opacity-50"
               >
@@ -349,15 +378,28 @@ export default function Home() {
                 </div>
                 <div className="text-center">
                   <p className="text-base font-semibold text-slate-800">
-                    カメラで撮影（または画像を選択）
+                    カメラで撮影
                   </p>
                   <p className="text-sm text-slate-500 mt-1">
-                    タップしてカメラまたはアルバムから選択
+                    タップするとカメラが起動します
                   </p>
                 </div>
               </button>
             )}
           </div>
+          {!previewUrl && (
+            <div className="px-4 pb-4 pt-0">
+              <button
+                type="button"
+                onClick={openFilePicker}
+                disabled={isProcessing}
+                className="w-full h-11 rounded-full bg-slate-100 text-slate-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors active:scale-[0.98] disabled:opacity-50"
+              >
+                <ImageIcon className="w-4 h-4" />
+                ファイルから画像を選択
+              </button>
+            </div>
+          )}
 
           {/* 生成ボタン - 画像がある時のみ表示 */}
           {imageFile && !processedUrl && (
