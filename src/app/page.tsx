@@ -16,6 +16,7 @@ import {
   canvasToBlob,
   type DetectedNumber,
 } from "@/lib/smartErase";
+import { compressImage, MAX_IMAGE_UPLOAD_BYTES } from "@/lib/imageCompression";
 
 // =====================================
 // Types
@@ -137,23 +138,35 @@ export default function Home() {
       ctx.setTransform(1, 0, 0, 1, 0, 0); // スケールをリセット
       URL.revokeObjectURL(img.src);
 
-      // Step 2: 画像データをBase64に変換（元のサイズで）
-      // APIに送信する画像は元のサイズを使用（座標の正規化のため）
+      // Step 2: 検出用画像を準備（大きい画像は圧縮）
       setStatusMessage("数字を検出中...");
+      const detectionFile =
+        imageFile.size > MAX_IMAGE_UPLOAD_BYTES
+          ? await compressImage(imageFile)
+          : imageFile;
+      const detectionImg = new Image();
+      await new Promise<void>((resolve, reject) => {
+        detectionImg.onload = () => resolve();
+        detectionImg.onerror = () =>
+          reject(new Error("検出用画像の読み込みに失敗しました"));
+        detectionImg.src = URL.createObjectURL(detectionFile);
+      });
+
       const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = originalWidth;
-      tempCanvas.height = originalHeight;
+      tempCanvas.width = detectionImg.width;
+      tempCanvas.height = detectionImg.height;
       const tempCtx = tempCanvas.getContext("2d");
       if (!tempCtx)
         throw new Error("Temp canvas context を取得できませんでした");
-      tempCtx.drawImage(img, 0, 0);
+      tempCtx.drawImage(detectionImg, 0, 0);
       const base64 = tempCanvas.toDataURL("image/png").split(",")[1];
+      URL.revokeObjectURL(detectionImg.src);
 
       const apiPayload = JSON.stringify({
         imageBase64: base64,
         mimeType: "image/png",
-        imageWidth: originalWidth,
-        imageHeight: originalHeight,
+        imageWidth: detectionImg.width,
+        imageHeight: detectionImg.height,
       });
 
       // Step 3: Gemini で数字検出
@@ -162,11 +175,36 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: apiPayload,
       });
-      const data = (await response.json()) as DetectionResponse;
-      if (!response.ok)
+      const rawResponse = await response.text();
+      let data: DetectionResponse | null = null;
+      try {
+        data = rawResponse ? (JSON.parse(rawResponse) as DetectionResponse) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        if (
+          response.status === 413 ||
+          /request entity too large/i.test(rawResponse)
+        ) {
+          throw new Error(
+            "画像サイズが大きすぎます。画像を小さくして再度お試しください。",
+          );
+        }
+        const plainResponse = rawResponse
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
         throw new Error(
-          data.error || `検出に失敗しました (${response.status})`,
+          data?.error ||
+            plainResponse ||
+            `検出に失敗しました (${response.status})`,
         );
+      }
+      if (!data) {
+        throw new Error("サーバーから不正な形式のレスポンスが返されました。");
+      }
       const detectedNumbers = data.numbers;
 
       if (!detectedNumbers || detectedNumbers.length === 0) {
@@ -175,24 +213,28 @@ export default function Home() {
         );
       }
 
-      // Step 4: 座標をスケールファクターで調整（全フィールドを保持）
+      // Step 4: 圧縮画像座標を元画像座標へ戻してからスケーリング（全フィールドを保持）
+      const toOriginalScaleX = originalWidth / detectionImg.width;
+      const toOriginalScaleY = originalHeight / detectionImg.height;
       const scaledNumbers = detectedNumbers.map((n) => ({
         text: n.text,
         bbox: {
-          x: n.bbox.x * SCALE_FACTOR,
-          y: n.bbox.y * SCALE_FACTOR,
-          width: n.bbox.width * SCALE_FACTOR,
-          height: n.bbox.height * SCALE_FACTOR,
+          x: n.bbox.x * toOriginalScaleX * SCALE_FACTOR,
+          y: n.bbox.y * toOriginalScaleY * SCALE_FACTOR,
+          width: n.bbox.width * toOriginalScaleX * SCALE_FACTOR,
+          height: n.bbox.height * toOriginalScaleY * SCALE_FACTOR,
         },
         // 追加フィールドを保持（安全フィルタに必要）
-        baselineY: n.baselineY ? n.baselineY * SCALE_FACTOR : undefined,
+        baselineY: n.baselineY
+          ? n.baselineY * toOriginalScaleY * SCALE_FACTOR
+          : undefined,
         fontStyle: n.fontStyle,
         role: n.role,
         parentChar: n.parentChar,
         charBboxes: n.charBboxes?.map((cb) => ({
           char: cb.char,
-          xmin: cb.xmin * SCALE_FACTOR,
-          xmax: cb.xmax * SCALE_FACTOR,
+          xmin: cb.xmin * toOriginalScaleX * SCALE_FACTOR,
+          xmax: cb.xmax * toOriginalScaleX * SCALE_FACTOR,
         })),
       }));
 
