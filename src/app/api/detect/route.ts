@@ -34,6 +34,17 @@ interface DetectResult {
   success: boolean;
 }
 
+function isPayloadTooLargeError(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes("request entity too large") ||
+    message.includes("payload too large") ||
+    message.includes("content length") ||
+    (message.includes("unexpected token") && message.includes("request en"))
+  );
+}
+
 function getApiKey(): string {
   const key = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) {
@@ -401,8 +412,14 @@ export async function POST(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("[Detect API Error]", error);
+    if (isPayloadTooLargeError(error)) {
+      return NextResponse.json(
+        { error: "画像サイズが大きすぎます。画像を小さくして再度お試しください。" },
+        { status: 413 },
+      );
+    }
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -196,10 +196,19 @@ export default function Home() {
           .replace(/<[^>]*>/g, " ")
           .replace(/\s+/g, " ")
           .trim();
+        const resolvedError =
+          data?.error || plainResponse || `検出に失敗しました (${response.status})`;
+        if (
+          /request entity too large|payload too large|unexpected token.*request en/i.test(
+            resolvedError,
+          )
+        ) {
+          throw new Error(
+            "画像サイズが大きすぎます。画像を小さくして再度お試しください。",
+          );
+        }
         throw new Error(
-          data?.error ||
-            plainResponse ||
-            `検出に失敗しました (${response.status})`,
+          resolvedError,
         );
       }
       if (!data) {
