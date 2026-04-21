@@ -9,6 +9,7 @@ interface HistoryModalProps {
   onClose: () => void;
   history: HistoryEntry[];
   onSelect: (entry: HistoryEntry) => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -19,6 +20,7 @@ export function HistoryModal({
   onClose,
   history,
   onSelect,
+  isLoading,
 }: HistoryModalProps) {
   if (!isOpen) return null;
 
@@ -34,7 +36,14 @@ export function HistoryModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">出力履歴</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">
+            変換履歴
+            {!isLoading && history.length > 0 && (
+              <span className="ml-2 text-xs font-normal text-zinc-400">
+                ({history.length}件)
+              </span>
+            )}
+          </h2>
           <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-zinc-50"
@@ -48,6 +57,7 @@ export function HistoryModal({
         <div className="mt-3 max-h-[60dvh] overflow-auto">
           <HistoryList
             history={history}
+            isLoading={isLoading}
             onSelect={(entry) => {
               onSelect(entry);
               onClose();

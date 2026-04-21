@@ -45,7 +45,7 @@ export default function Home() {
 
   // AppShell context
   const shell = useAppShell();
-  const { incrementApiUsage, apiUsage } = shell ?? {};
+  const { incrementApiUsage, apiUsage, addHistoryEntry } = shell ?? {};
   const apiUsageCount = apiUsage?.count ?? 0;
   const apiUsageLimit = apiUsage?.limit ?? 1500;
 
@@ -211,13 +211,27 @@ export default function Home() {
 
       // API使用量をインクリメント
       incrementApiUsage?.();
+
+      // 変換履歴を Supabase に保存
+      addHistoryEntry?.({
+        id: crypto.randomUUID(),
+        createdAt: new Date().toLocaleString("ja-JP", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        summary: `問題の数値を変換しました`,
+        numbersDetected: detectedNumbers.length,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "不明なエラーが発生しました");
     } finally {
       setIsProcessing(false);
       setStatusMessage("");
     }
-  }, [imageFile, incrementApiUsage]);
+  }, [imageFile, incrementApiUsage, addHistoryEntry]);
 
   // ダウンロード処理
   const handleDownload = useCallback(() => {

@@ -1,93 +1,96 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
+import type { GlobalUsageRow } from "@/lib/supabase";
 
-const STORAGE_KEY = "ai-problem-converter:api-usage";
 const DAILY_LIMIT = 1500;
-const WARNING_THRESHOLD = 0.8; // 80%
-
-interface UsageData {
-  date: string;
-  count: number;
-}
+const WARNING_THRESHOLD = 0.8;
 
 function getTodayString(): string {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }
 
-function parseUsageData(raw: string | null): UsageData {
-  const today = getTodayString();
-  if (!raw) return { date: today, count: 0 };
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "date" in parsed &&
-      "count" in parsed
-    ) {
-      const data = parsed as UsageData;
-      // 日付が違う場合はリセット
-      if (data.date !== today) {
-        return { date: today, count: 0 };
-      }
-      return data;
-    }
-  } catch {
-    // パースエラーの場合は初期化
-  }
-
-  return { date: today, count: 0 };
-}
-
 export function useApiUsage() {
   const [count, setCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
-  // 初回マウント時にlocalStorageから読み込み
+  // --- 初回マウント: Supabase から今日のカウントを取得 ---
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const data = parseUsageData(raw);
-      setCount(data.count);
-    } catch (e) {
-      console.warn("[useApiUsage] localStorage read failed", e);
-    } finally {
-      setHydrated(true);
+    async function fetchCount() {
+      try {
+        const { data, error } = await supabase
+          .from("global_usage")
+          .select("count, date")
+          .eq("id", 1)
+          .single<Pick<GlobalUsageRow, "count" | "date">>();
+
+        if (error) {
+          console.warn("[useApiUsage] Supabase fetch failed:", error.message);
+          return;
+        }
+
+        const today = getTodayString();
+        // 日付が変わっていたらカウントは 0 として表示（DBはインクリメント時にリセット）
+        setCount(data.date === today ? data.count : 0);
+      } catch (e) {
+        console.warn("[useApiUsage] unexpected error:", e);
+      } finally {
+        setHydrated(true);
+      }
     }
+    void fetchCount();
   }, []);
 
-  // カウントが変更されたらlocalStorageに保存
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      const data: UsageData = {
-        date: getTodayString(),
-        count,
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.warn("[useApiUsage] localStorage write failed", e);
-    }
-  }, [hydrated, count]);
-
-  // カウントをインクリメント
-  const incrementCount = useCallback(() => {
+  // --- カウントをインクリメント（Supabase を更新） ---
+  const incrementCount = useCallback(async () => {
+    // 楽観的 UI: 先にローカル状態を +1
     setCount((prev) => prev + 1);
+
+    try {
+      const today = getTodayString();
+
+      // 現在の行を取得
+      const { data, error: fetchErr } = await supabase
+        .from("global_usage")
+        .select("count, date")
+        .eq("id", 1)
+        .single<Pick<GlobalUsageRow, "count" | "date">>();
+
+      if (fetchErr) {
+        console.warn("[useApiUsage] fetch before increment failed:", fetchErr.message);
+        return;
+      }
+
+      const isNewDay = data.date !== today;
+      const newCount = isNewDay ? 1 : data.count + 1;
+
+      const { error: updateErr } = await supabase
+        .from("global_usage")
+        .update({
+          count: newCount,
+          date: today,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+
+      if (updateErr) {
+        console.warn("[useApiUsage] update failed:", updateErr.message);
+        return;
+      }
+
+      // サーバー側の確定値で同期
+      setCount(newCount);
+    } catch (e) {
+      console.warn("[useApiUsage] incrementCount error:", e);
+    }
   }, []);
 
-  // カウントをリセット
-  const resetCount = useCallback(() => {
-    setCount(0);
-  }, []);
-
-  // 表示用の情報
-  const isWarning = count >= DAILY_LIMIT * WARNING_THRESHOLD;
-  const isAtLimit = count >= DAILY_LIMIT;
   const remaining = Math.max(0, DAILY_LIMIT - count);
   const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
+  const isWarning = count >= DAILY_LIMIT * WARNING_THRESHOLD;
+  const isAtLimit = count >= DAILY_LIMIT;
 
   return {
     count,
@@ -98,6 +101,7 @@ export function useApiUsage() {
     isAtLimit,
     hydrated,
     incrementCount,
-    resetCount,
+    // resetCount は Supabase 版では管理者操作扱いのため省略
+    resetCount: () => {},
   };
 }

@@ -4,12 +4,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
-import type { HistoryEntry, Introduction } from "@/types";
-import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import type { HistoryEntry } from "@/types";
 import { useApiUsage } from "@/hooks/useApiUsage";
+import { supabase } from "@/lib/supabase";
+import type { ConversionHistoryRow } from "@/lib/supabase";
 import { Navbar } from "./Navbar";
 import { HistoryModal } from "./HistoryModal";
 import { ProfileModal } from "./ProfileModal";
@@ -40,38 +42,23 @@ export function useAppShell() {
 }
 
 // =====================================
-// Storage
+// Helpers
 // =====================================
 
-const STORAGE_KEY = "ai-problem-converter:history";
-
-function safeParseHistory(raw: string | null): HistoryEntry[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x): x is HistoryEntry => {
-      if (!x || typeof x !== "object") return false;
-      const o = x as Record<string, unknown>;
-      if (typeof o.id !== "string") return false;
-      if (typeof o.createdAt !== "string") return false;
-      if (!o.result) return false;
-      return true;
-    });
-  } catch {
-    return [];
-  }
-}
-
-function isIntroduction(value: unknown): value is Introduction {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  if (typeof v.name !== "string") return false;
-  if (typeof v.zikosyoukai !== "string") return false;
-  if (!v.image || typeof v.image !== "object") return false;
-  const img = v.image as Record<string, unknown>;
-  if (typeof img.url !== "string") return false;
-  return true;
+/** Supabase の行データを HistoryEntry に変換 */
+function rowToEntry(row: ConversionHistoryRow): HistoryEntry {
+  return {
+    id: row.id,
+    createdAt: new Date(row.created_at).toLocaleString("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    summary: row.summary,
+    numbersDetected: row.numbers_detected,
+  };
 }
 
 // =====================================
@@ -83,24 +70,72 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
 
-  // API usage tracking
+  // API usage tracking (Supabase 対応済み)
   const apiUsage = useApiUsage();
 
-  // History state
-  const [history, setHistory] = useLocalStorageState<HistoryEntry[]>(
-    STORAGE_KEY,
-    {
-      defaultValue: [],
-      parse: safeParseHistory,
-    }
-  );
+  // 履歴 state（Supabase から取得）
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedHistoryEntry, setSelectedHistoryEntry] =
     useState<HistoryEntry | null>(null);
 
   // Introduction state
-  const [introduction, setIntroduction] = useState<Introduction | null>(null);
+  const [introduction, setIntroduction] = useState<{
+    name: string;
+    zikosyoukai: string;
+    image: { url: string };
+  } | null>(null);
   const [introLoading, setIntroLoading] = useState(false);
   const [introError, setIntroError] = useState<string | null>(null);
+
+  // --- 履歴をSupabaseから取得 ---
+  const loadHistory = useCallback(async () => {
+    if (historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("conversion_history")
+        .select("id, created_at, summary, numbers_detected")
+        .order("created_at", { ascending: false })
+        .limit(50)
+        .returns<ConversionHistoryRow[]>();
+
+      if (error) {
+        console.warn("[AppShell] history fetch failed:", error.message);
+        return;
+      }
+      setHistory((data ?? []).map(rowToEntry));
+    } catch (e) {
+      console.warn("[AppShell] history unexpected error:", e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historyLoading]);
+
+  // 初回マウント時に履歴を取得
+  useEffect(() => {
+    void loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- 新しい履歴エントリをSupabaseに保存 ---
+  const addHistoryEntry = useCallback(async (entry: HistoryEntry) => {
+    // 楽観的 UI: 先にローカルに追加
+    setHistory((prev) => [entry, ...prev]);
+
+    try {
+      const { error } = await supabase.from("conversion_history").insert({
+        id: entry.id,
+        summary: entry.summary,
+        numbers_detected: entry.numbersDetected,
+      });
+      if (error) {
+        console.warn("[AppShell] history insert failed:", error.message);
+      }
+    } catch (e) {
+      console.warn("[AppShell] addHistoryEntry error:", e);
+    }
+  }, []);
 
   // Load introduction from API
   const loadIntroduction = useCallback(async () => {
@@ -117,12 +152,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : `Request failed (${res.status})`;
         throw new Error(message);
       }
-      if (!isIntroduction(data)) {
-        throw new Error(
-          "microCMSの応答形式が想定と異なります。フィールドを確認してください。"
+      if (
+        data &&
+        typeof data === "object" &&
+        "name" in data &&
+        "zikosyoukai" in data &&
+        "image" in data
+      ) {
+        setIntroduction(
+          data as { name: string; zikosyoukai: string; image: { url: string } }
         );
       }
-      setIntroduction(data);
     } catch (e) {
       const message = e instanceof Error ? e.message : "不明なエラー";
       setIntroError(message);
@@ -131,36 +171,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [introLoading, introduction]);
 
-  // localStorage read/write is handled by useLocalStorageState
-
   // Context value
   const contextValue = useMemo<AppShellContextValue>(
     () => ({
-      openHistory: () => setHistoryOpen(true),
+      openHistory: () => {
+        setHistoryOpen(true);
+        void loadHistory();
+      },
       openCreator: () => {
         setCreatorOpen(true);
         void loadIntroduction();
       },
-      addHistoryEntry: (entry) => {
-        setHistory((prev) => [entry, ...prev]);
-      },
+      addHistoryEntry,
       selectedHistoryEntry,
       clearSelectedHistoryEntry: () => setSelectedHistoryEntry(null),
-      incrementApiUsage: apiUsage.incrementCount,
+      incrementApiUsage: () => void apiUsage.incrementCount(),
       apiUsage: {
         count: apiUsage.count,
         limit: apiUsage.limit,
         hydrated: apiUsage.hydrated,
       },
     }),
-    [selectedHistoryEntry, loadIntroduction, setHistory, apiUsage.incrementCount, apiUsage.count, apiUsage.limit, apiUsage.hydrated]
+    [
+      selectedHistoryEntry,
+      loadIntroduction,
+      loadHistory,
+      addHistoryEntry,
+      apiUsage.incrementCount,
+      apiUsage.count,
+      apiUsage.limit,
+      apiUsage.hydrated,
+    ]
   );
 
   return (
     <AppShellContext.Provider value={contextValue}>
       <div className="min-h-dvh bg-[#F2F2F7]">
         <Navbar
-          onHistoryClick={() => setHistoryOpen(true)}
+          onHistoryClick={() => {
+            setHistoryOpen(true);
+            void loadHistory();
+          }}
           onCreatorClick={() => {
             setCreatorOpen(true);
             void loadIntroduction();
@@ -173,6 +224,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           isOpen={historyOpen}
           onClose={() => setHistoryOpen(false)}
           history={history}
+          isLoading={historyLoading}
           onSelect={(entry) => setSelectedHistoryEntry(entry)}
         />
 
