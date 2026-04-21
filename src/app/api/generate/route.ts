@@ -7,6 +7,7 @@ import {
   SYSTEM_INSTRUCTION,
   USER_PROMPT,
 } from "@/lib/gemini";
+import { getFallbackDecision } from "@/lib/modelFallback";
 
 export const runtime = "nodejs";
 
@@ -67,21 +68,6 @@ function parseGenerateResult(rawText: string): GenerateResult {
   const message =
     lastError instanceof Error ? lastError.message : "Parse failed";
   throw new Error(message);
-}
-
-function isRateLimitErrorMessage(message: string): boolean {
-  const msg = message.toLowerCase();
-  return (
-    msg.includes("429") ||
-    msg.includes("quota") ||
-    msg.includes("rate limit") ||
-    msg.includes("resource exhausted")
-  );
-}
-
-function isNotFoundErrorMessage(message: string): boolean {
-  const msg = message.toLowerCase();
-  return msg.includes("404") || msg.includes("not found");
 }
 
 function getApiKey(): string {
@@ -162,16 +148,21 @@ async function tryGenerateWithModel(
     return { success: true, result: json };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    const isRateLimit = isRateLimitErrorMessage(err.message);
-    const isNotFound = isNotFoundErrorMessage(err.message);
+    const decision = getFallbackDecision(err);
     // 404またはレートリミットの場合は次のモデルにフォールバック
-    const shouldFallback = isRateLimit || isNotFound;
+    const shouldFallback = decision.shouldFallback;
 
     console.log(
-      `[Gemini API] Failed with model ${modelName}: ${err.message} (isRateLimit: ${isRateLimit}, isNotFound: ${isNotFound})`
+      `[Gemini API] Failed with model ${modelName}: ${err.message} (isRateLimit: ${decision.isRateLimit}, isNotFound: ${decision.isNotFound})`
     );
 
-    return { success: false, error: err, isRateLimit, isNotFound, shouldFallback };
+    return {
+      success: false,
+      error: err,
+      isRateLimit: decision.isRateLimit,
+      isNotFound: decision.isNotFound,
+      shouldFallback,
+    };
   }
 }
 

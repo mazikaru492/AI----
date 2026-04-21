@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GEMINI_MODEL_LIST } from "@/lib/gemini";
+import { getFallbackDecision } from "@/lib/modelFallback";
 import {
   analyzeGlmOcrResponse,
   mergeGlmOcrWithCoordinates,
@@ -14,6 +15,12 @@ import type {
 } from "@/lib/smartErase";
 
 export const runtime = "nodejs";
+
+const DETECT_CACHE_TTL_MS = 10 * 60 * 1000;
+const detectResultCache = new Map<
+  string,
+  { expiresAt: number; value: { numbers: DetectedNumber[]; glmOcrUsed: boolean } }
+>();
 
 interface DetectRequest {
   imageBase64: string;
@@ -305,6 +312,16 @@ export async function POST(request: Request) {
 
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
+    const cacheKey = `${imageBase64.length}:${imageWidth}x${imageHeight}:${imageBase64.slice(0, 256)}`;
+    const cached = detectResultCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json({
+        numbers: cached.value.numbers,
+        success: true,
+        glmOcrUsed: cached.value.glmOcrUsed,
+        cached: true,
+      });
+    }
 
     // GLM-OCR を並列で呼び出し（座標マージ用）
     const glmOcrPromise = getGlmOcrTokens(imageBase64, mimeType);
@@ -353,6 +370,14 @@ export async function POST(request: Request) {
             );
           }
 
+          detectResultCache.set(cacheKey, {
+            expiresAt: Date.now() + DETECT_CACHE_TTL_MS,
+            value: {
+              numbers: finalNumbers,
+              glmOcrUsed: glmTokens.length > 0,
+            },
+          });
+
           return NextResponse.json({
             numbers: finalNumbers,
             success: true,
@@ -363,7 +388,11 @@ export async function POST(request: Request) {
         console.log("[Detect API] No numbers, trying next model...");
       } catch (e) {
         console.log(`[Detect API] ${modelName} failed:`, e);
-        continue;
+        const decision = getFallbackDecision(e);
+        if (decision.shouldFallback) {
+          continue;
+        }
+        throw e;
       }
     }
 

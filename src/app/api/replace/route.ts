@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GEMINI_MODEL_LIST } from "@/lib/gemini";
+import { getFallbackDecision } from "@/lib/modelFallback";
 
 export const runtime = "nodejs";
+
+const REPLACE_CACHE_TTL_MS = 30 * 60 * 1000;
+const replaceResultCache = new Map<string, { expiresAt: number; value: ReplacementResult[] }>();
 
 interface ReplacementRequest {
   numbers: string[];
@@ -72,6 +76,11 @@ export async function POST(request: Request) {
     }
 
     const uniqueNumbers = [...new Set(numbers)];
+    const cacheKey = uniqueNumbers.slice().sort().join("|");
+    const cached = replaceResultCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json(cached.value);
+    }
 
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -89,11 +98,19 @@ export async function POST(request: Request) {
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         const replacements = parseReplacementResult(text);
+        replaceResultCache.set(cacheKey, {
+          expiresAt: Date.now() + REPLACE_CACHE_TTL_MS,
+          value: replacements,
+        });
 
         return NextResponse.json(replacements);
       } catch (e) {
         console.log(`[Replace API] Failed with ${modelName}:`, e);
-        continue;
+        const decision = getFallbackDecision(e);
+        if (decision.shouldFallback) {
+          continue;
+        }
+        throw e;
       }
     }
 

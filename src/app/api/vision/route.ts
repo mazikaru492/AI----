@@ -14,9 +14,16 @@ import {
   type DetectedToken,
   type VisionDetectionResult,
 } from '@/lib/gemini';
+import { getFallbackDecision } from '@/lib/modelFallback';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // タイムアウト延長（大量トークン対応）
+
+const VISION_CACHE_TTL_MS = 10 * 60 * 1000;
+const visionResultCache = new Map<
+  string,
+  { expiresAt: number; value: { tokens: DetectedToken[]; totalDetected: number; model: string } }
+>();
 
 /**
  * APIキー取得
@@ -139,6 +146,11 @@ export async function POST(request: Request) {
 
     const mimeType = extractMimeType(image);
     const pureBase64 = extractPureBase64(image);
+    const cacheKey = `${mimeType}:${confidenceThreshold}:${pureBase64.length}:${pureBase64.slice(0, 256)}`;
+    const cached = visionResultCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json({ ...cached.value, cached: true });
+    }
 
     // 各モデルで試行
     for (const modelName of VISION_MODEL_LIST) {
@@ -174,15 +186,24 @@ export async function POST(request: Request) {
           `[Vision API] Detected ${detection.tokens.length} tokens, ${filteredTokens.length} above threshold`
         );
 
-        return NextResponse.json({
+        const payload = {
           tokens: filteredTokens,
           totalDetected: detection.tokens.length,
           model: modelName,
+        };
+        visionResultCache.set(cacheKey, {
+          expiresAt: Date.now() + VISION_CACHE_TTL_MS,
+          value: payload,
         });
+        return NextResponse.json(payload);
       } catch (e) {
         const error = e as Error;
         console.log(`[Vision API] Failed with ${modelName}:`, error.message);
-        continue;
+        const decision = getFallbackDecision(error);
+        if (decision.shouldFallback) {
+          continue;
+        }
+        throw error;
       }
     }
 

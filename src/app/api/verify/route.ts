@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GEMINI_MODEL_LIST } from "@/lib/gemini";
+import { getFallbackDecision } from "@/lib/modelFallback";
 
 export const runtime = "nodejs";
+
+const VERIFY_CACHE_TTL_MS = 5 * 60 * 1000;
+const verifyResultCache = new Map<string, { expiresAt: number; value: VerifyResult }>();
 
 interface VerifyRequest {
   imageBase64: string;
@@ -93,6 +97,11 @@ export async function POST(request: Request) {
 
     const apiKey = getApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
+    const cacheKey = `${mimeType || "image/png"}:${imageBase64.length}:${imageBase64.slice(0, 256)}`;
+    const cached = verifyResultCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json({ ...cached.value, cached: true });
+    }
 
     // Try each model
     for (const modelName of GEMINI_MODEL_LIST) {
@@ -115,10 +124,18 @@ export async function POST(request: Request) {
         console.log("[Verify API] Response:", text);
 
         const verification = parseVerificationResult(text);
+        verifyResultCache.set(cacheKey, {
+          expiresAt: Date.now() + VERIFY_CACHE_TTL_MS,
+          value: verification,
+        });
         return NextResponse.json(verification);
       } catch (e) {
         console.log(`[Verify API] Failed with ${modelName}:`, e);
-        continue;
+        const decision = getFallbackDecision(e);
+        if (decision.shouldFallback) {
+          continue;
+        }
+        throw e;
       }
     }
 
