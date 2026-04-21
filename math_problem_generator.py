@@ -137,12 +137,12 @@ def generate_explanation(new_math_expr: str) -> str:
     """
     google.genai (新 SDK) を使い、新しい数式のステップバイステップ解説を生成する。
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GOOGLE_GEMINI_API_KEY")
     if not api_key:
         raise EnvironmentError(
-            "環境変数 GEMINI_API_KEY が設定されていません。\n"
-            "  Windows:  set GEMINI_API_KEY=your-key-here\n"
-            "  Linux/Mac: export GEMINI_API_KEY=your-key-here"
+            "環境変数 GOOGLE_GEMINI_API_KEY が設定されていません。\n"
+            "  Windows:  set GOOGLE_GEMINI_API_KEY=your-key-here\n"
+            "  Linux/Mac: export GOOGLE_GEMINI_API_KEY=your-key-here"
         )
 
     # 新 SDK の初期化方法
@@ -155,9 +155,9 @@ def generate_explanation(new_math_expr: str) -> str:
         f"【新しい数式】: {new_math_expr}"
     )
 
-    # gemini-2.0-flash モデルで生成
+    # gemini 3系モデルで生成
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-3-flash-preview",
         contents=prompt,
     )
     return response.text
