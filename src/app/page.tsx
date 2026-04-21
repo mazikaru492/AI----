@@ -28,6 +28,8 @@ interface DetectionResponse {
   error?: string;
 }
 
+const MAX_BASE64_SAFE_FILE_BYTES = Math.floor(MAX_IMAGE_UPLOAD_BYTES * 0.72);
+
 // =====================================
 // Component
 // =====================================
@@ -141,7 +143,7 @@ export default function Home() {
       // Step 2: 検出用画像を準備（大きい画像は圧縮）
       setStatusMessage("数字を検出中...");
       const detectionFile =
-        imageFile.size > MAX_IMAGE_UPLOAD_BYTES
+        imageFile.size > MAX_BASE64_SAFE_FILE_BYTES
           ? await compressImage(imageFile)
           : imageFile;
       const detectionImg = new Image();
@@ -151,20 +153,22 @@ export default function Home() {
           reject(new Error("検出用画像の読み込みに失敗しました"));
         detectionImg.src = URL.createObjectURL(detectionFile);
       });
-
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = detectionImg.width;
-      tempCanvas.height = detectionImg.height;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx)
-        throw new Error("Temp canvas context を取得できませんでした");
-      tempCtx.drawImage(detectionImg, 0, 0);
-      const base64 = tempCanvas.toDataURL("image/png").split(",")[1];
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () =>
+          reject(new Error("検出用画像のエンコードに失敗しました"));
+        reader.readAsDataURL(detectionFile);
+      });
+      const base64 = dataUrl.split(",")[1] ?? "";
       URL.revokeObjectURL(detectionImg.src);
+      if (!base64) {
+        throw new Error("検出用画像のデータ生成に失敗しました。");
+      }
 
       const apiPayload = JSON.stringify({
         imageBase64: base64,
-        mimeType: "image/png",
+        mimeType: detectionFile.type || "image/jpeg",
         imageWidth: detectionImg.width,
         imageHeight: detectionImg.height,
       });
