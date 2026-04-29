@@ -41,7 +41,10 @@ function normalizeWord(value: unknown): string | null {
   return text;
 }
 
-function extractWordsFromRange(sheet: XLSX.WorkSheet, rangeA1: string): string[] {
+function extractWordsFromRange(
+  sheet: XLSX.WorkSheet,
+  rangeA1: string,
+): string[] {
   const decoded = XLSX.utils.decode_range(rangeA1);
   const words: string[] = [];
 
@@ -82,7 +85,10 @@ function extractJsonArraySubstring(text: string): string | null {
   return text.slice(start, end + 1);
 }
 
-function parseWordTestItems(rawText: string, expectedWords: string[]): WordTestItem[] {
+function parseWordTestItems(
+  rawText: string,
+  expectedWords: string[],
+): WordTestItem[] {
   const cleaned = stripCodeFences(rawText)
     .trim()
     .replace(/\uFEFF/g, "")
@@ -185,7 +191,7 @@ ${JSON.stringify(words, null, 2)}
 `.trim();
 }
 
-function buildWorkbookBuffer(items: WordTestItem[]): Buffer {
+function buildWorkbookBuffer(items: WordTestItem[]): Uint8Array {
   const rows = items.map((item, index) => ({
     No: index + 1,
     Word: item.word,
@@ -208,7 +214,11 @@ function buildWorkbookBuffer(items: WordTestItem[]): Buffer {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "WordTest");
 
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const workbookArray = XLSX.write(workbook, {
+    type: "array",
+    bookType: "xlsx",
+  }) as ArrayBuffer;
+  return new Uint8Array(workbookArray);
 }
 
 export async function POST(request: Request) {
@@ -308,7 +318,9 @@ export async function POST(request: Request) {
         });
 
         const result = await model.generateContent({
-          contents: [{ role: "user", parts: [{ text: buildPrompt(selectedWords) }] }],
+          contents: [
+            { role: "user", parts: [{ text: buildPrompt(selectedWords) }] },
+          ],
           generationConfig: {
             responseMimeType: "application/json",
             temperature: 0.4,
@@ -376,13 +388,19 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: "英語テストの生成に失敗しました。時間をおいて再試行してください。" },
+      {
+        error:
+          "英語テストの生成に失敗しました。時間をおいて再試行してください。",
+      },
       { status: 500 },
     );
   } catch (error) {
     console.error("[English Word Test API Error]", error);
     return NextResponse.json(
-      { error: "英語テストの生成に失敗しました。時間をおいて再試行してください。" },
+      {
+        error:
+          "英語テストの生成に失敗しました。時間をおいて再試行してください。",
+      },
       { status: 500 },
     );
   }
