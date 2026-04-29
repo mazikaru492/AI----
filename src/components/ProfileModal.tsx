@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { X } from 'lucide-react';
-import Image from 'next/image';
-import type { Introduction } from '@/types';
+import { X } from "lucide-react";
+import Image from "next/image";
+import type { Introduction } from "@/types";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ interface ProfileModalProps {
 
 /**
  * 制作者紹介モーダル
+ * Liquid Glass ダークテーマ対応
  */
 export function ProfileModal({
   isOpen,
@@ -28,24 +29,26 @@ export function ProfileModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      className="liquid-overlay fixed inset-0 z-50 flex items-center justify-center px-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5"
+        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-2xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">制作者の紹介</h2>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            制作者の紹介
+          </h2>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-zinc-50"
+            className="liquid-button inline-flex h-9 w-9 items-center justify-center rounded-xl"
             onClick={onClose}
             aria-label="close"
           >
-            <X className="h-5 w-5 text-zinc-700" />
+            <X className="h-5 w-5" style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 
@@ -53,24 +56,27 @@ export function ProfileModal({
           {isLoading ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-14 w-14 animate-pulse rounded-full bg-zinc-200" />
+                <div className="h-14 w-14 animate-pulse rounded-full liquid-skeleton" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
-                  <div className="h-3 w-28 animate-pulse rounded bg-zinc-200" />
+                  <div className="h-4 w-40 liquid-skeleton" />
+                  <div className="h-3 w-28 liquid-skeleton" />
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="h-3 w-full animate-pulse rounded bg-zinc-200" />
-                <div className="h-3 w-[92%] animate-pulse rounded bg-zinc-200" />
-                <div className="h-3 w-[88%] animate-pulse rounded bg-zinc-200" />
+                <div className="h-3 w-full liquid-skeleton" />
+                <div className="h-3 w-[92%] liquid-skeleton" />
+                <div className="h-3 w-[88%] liquid-skeleton" />
               </div>
             </div>
           ) : error ? (
-            <div className="rounded-xl bg-zinc-50 p-3">
-              <p className="text-sm font-medium text-red-600">{error}</p>
+            <div
+              className="liquid-panel-soft rounded-xl p-3"
+              style={{ borderColor: 'var(--danger-soft)' }}
+            >
+              <p className="text-sm font-medium" style={{ color: '#f87171' }}>{error}</p>
               <button
                 type="button"
-                className="mt-3 h-11 w-full rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white"
+                className="liquid-button-primary mt-3 h-11 w-full rounded-xl px-4 text-sm font-semibold"
                 onClick={onRetry}
               >
                 再読み込み
@@ -79,7 +85,12 @@ export function ProfileModal({
           ) : introduction ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="relative h-14 w-14 overflow-hidden rounded-full ring-1 ring-black/5">
+                <div
+                  className="relative h-14 w-14 overflow-hidden rounded-full"
+                  style={{
+                    boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.1)',
+                  }}
+                >
                   {introduction.image?.url ? (
                     <Image
                       src={introduction.image.url}
@@ -89,36 +100,38 @@ export function ProfileModal({
                       sizes="56px"
                     />
                   ) : (
-                    <div className="h-full w-full bg-zinc-200" />
+                    <div className="h-full w-full liquid-skeleton" />
                   )}
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-zinc-900">
+                  <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                     {introduction.name}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-zinc-600">
+                  <p className="mt-0.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                     制作者プロフィール
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-zinc-50 p-3">
-                <p className="whitespace-pre-wrap text-sm text-zinc-900">
+              <div className="liquid-panel-soft rounded-xl p-3">
+                <p className="whitespace-pre-wrap text-sm" style={{ color: 'var(--text-primary)' }}>
                   {introduction.zikosyoukai}
                 </p>
               </div>
 
               <button
                 type="button"
-                className="h-11 w-full rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white"
+                className="liquid-button h-11 w-full rounded-xl px-4 text-sm font-semibold"
                 onClick={onClose}
               >
                 閉じる
               </button>
             </div>
           ) : (
-            <div className="rounded-xl bg-zinc-50 p-3">
-              <p className="text-sm text-zinc-600">読み込み準備中です。</p>
+            <div className="liquid-panel-soft rounded-xl p-3">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                読み込み準備中です。
+              </p>
             </div>
           )}
         </div>

@@ -14,6 +14,7 @@ interface HistoryModalProps {
 
 /**
  * 履歴モーダル
+ * Liquid Glass オーバーレイ + ガラスパネル
  */
 export function HistoryModal({
   isOpen,
@@ -26,31 +27,31 @@ export function HistoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-16"
+      className="liquid-overlay fixed inset-0 z-50 flex items-start justify-center px-4 pt-16"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5"
+        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-2xl p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             変換履歴
             {!isLoading && history.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-zinc-400">
+              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
                 ({history.length}件)
               </span>
             )}
           </h2>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-zinc-50"
+            className="liquid-button inline-flex h-9 w-9 items-center justify-center rounded-xl"
             onClick={onClose}
             aria-label="close"
           >
-            <X className="h-5 w-5 text-zinc-700" />
+            <X className="h-5 w-5" style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 

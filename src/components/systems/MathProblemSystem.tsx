@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Camera,
+  CheckCircle2,
   Download,
   ImageIcon,
   Loader2,
@@ -288,30 +289,13 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
 
   const usageStatusColor = useMemo(
     () =>
-      apiUsageCount < apiUsageLimit * 0.8 ? "bg-[#34C759]" : "bg-[#FF9500]",
+      apiUsageCount < apiUsageLimit * 0.8 ? '#22c55e' : '#f59e0b',
     [apiUsageCount, apiUsageLimit],
   );
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#F2F2F7] -z-10">
-        <div
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-40"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(0,122,255,0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-        />
-        <div
-          className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full opacity-30"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(52,199,89,0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-        />
-      </div>
+      <div className="liquid-page-bg" />
 
       <canvas ref={canvasRef} className="hidden" />
 
@@ -319,23 +303,23 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+          className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
           システム選択に戻る
         </button>
 
         <div className="text-center pt-2">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             AI問題変換
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             問題用紙を撮影すると、数値だけ変えた類題を作成します
           </p>
           <div className="flex justify-center mt-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 backdrop-blur-sm border border-white/30 shadow-sm">
-              <span className={`w-2 h-2 rounded-full ${usageStatusColor}`} />
-              <span className="font-mono text-sm font-medium text-slate-700">
+            <div className="liquid-chip flex items-center gap-2 rounded-full px-3 py-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ background: usageStatusColor }} />
+              <span className="font-mono text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                 {apiUsageCount}/{apiUsageLimit}
               </span>
             </div>
@@ -359,10 +343,10 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           onChange={handleFileChange}
         />
 
-        <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <section className="liquid-panel overflow-hidden rounded-[32px]">
           <div className="relative">
             {previewUrl ? (
-              <div className="relative aspect-[4/3] bg-slate-100">
+              <div className="relative aspect-[4/3]" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <img
                   src={previewUrl}
                   alt="プレビュー"
@@ -372,7 +356,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={clearFile}
                   disabled={isProcessing}
-                  className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/70 transition-colors active:scale-95 disabled:opacity-50"
+                  className="liquid-button absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -380,7 +364,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={openCameraPicker}
                   disabled={isProcessing}
-                  className="absolute bottom-3 right-3 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-white transition-colors active:scale-95 disabled:opacity-50 shadow-lg"
+                  className="liquid-button absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <Camera className="w-4 h-4" />
                   撮り直し
@@ -389,7 +373,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={openFilePicker}
                   disabled={isProcessing}
-                  className="absolute bottom-3 left-3 px-4 py-2 rounded-full bg-white/80 backdrop-blur-md flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-white transition-colors active:scale-95 disabled:opacity-50 shadow-lg"
+                  className="liquid-button absolute bottom-3 left-3 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <ImageIcon className="w-4 h-4" />
                   ファイル
@@ -400,16 +384,16 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={openCameraPicker}
                 disabled={isProcessing}
-                className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-4 group transition-all duration-300 hover:bg-slate-50/50 active:scale-[0.98] disabled:opacity-50"
+                className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
               >
-                <div className="w-20 h-20 rounded-full bg-[#007AFF]/10 flex items-center justify-center group-hover:bg-[#007AFF]/15 transition-colors">
-                  <Camera className="w-10 h-10 text-[#007AFF] stroke-[1.5]" />
+                <div className="flex h-20 w-20 items-center justify-center rounded-full transition-colors" style={{ background: 'var(--primary-soft)' }}>
+                  <Camera className="w-10 h-10 stroke-[1.5]" style={{ color: '#60a5fa' }} />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold text-slate-800">
+                  <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                     カメラで撮影
                   </p>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
                     タップするとカメラが起動します
                   </p>
                 </div>
@@ -422,7 +406,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={openFilePicker}
                 disabled={isProcessing}
-                className="w-full h-11 rounded-full bg-slate-100 text-slate-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors active:scale-[0.98] disabled:opacity-50"
+                className="liquid-button flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
               >
                 <ImageIcon className="w-4 h-4" />
                 ファイルから画像を選択
@@ -436,11 +420,11 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={processImage}
                 disabled={isProcessing}
-                className="relative w-full h-14 rounded-full overflow-hidden bg-[#007AFF] text-base font-semibold text-white shadow-[0_4px_14px_rgb(0,122,255,0.25)] transition-all duration-200 hover:bg-[#0066DD] active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
+                className="liquid-button-primary relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
               >
                 {!isProcessing && (
                   <div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
                     style={{ animation: "scanning 2s ease-in-out infinite" }}
                   />
                 )}
@@ -462,8 +446,8 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           )}
 
           {error && (
-            <div className="mx-4 mb-4 rounded-2xl bg-[#FF3B30]/10 border border-[#FF3B30]/20 p-4">
-              <p className="text-sm font-medium text-[#FF3B30]">{error}</p>
+            <div className="liquid-panel-soft mx-4 mb-4 rounded-2xl p-4" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+              <p className="text-sm font-medium" style={{ color: '#f87171' }}>{error}</p>
             </div>
           )}
         </section>
@@ -471,18 +455,18 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         <AdBanner slot="main-page-middle" position="middle" enabled={false} />
 
         {processedUrl && (
-          <section className="rounded-[32px] bg-white/70 backdrop-blur-2xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-fadeIn">
+          <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[32px]">
             <div className="p-4 pb-0">
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-[#34C759]/10 flex items-center justify-center">
-                  ✅
+              <h2 className="flex items-center gap-2 text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'var(--success-soft)', color: '#4ade80' }}>
+                  <CheckCircle2 className="h-5 w-5" />
                 </span>
                 処理完了
               </h2>
             </div>
 
             <div className="p-4">
-              <div className="rounded-2xl overflow-hidden bg-slate-100">
+              <div className="overflow-hidden rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <img
                   src={processedUrl}
                   alt="処理済み画像"
@@ -495,7 +479,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
               <button
                 type="button"
                 onClick={handleDownload}
-                className="w-full h-12 rounded-full bg-[#34C759] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#2FB350] transition-colors active:scale-[0.98] shadow-[0_4px_14px_rgb(52,199,89,0.25)]"
+                className="liquid-button-success flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold transition-colors active:scale-[0.98]"
               >
                 <Download className="w-5 h-5" />
                 画像をダウンロード
@@ -506,7 +490,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
               <button
                 type="button"
                 onClick={clearFile}
-                className="w-full h-10 rounded-full bg-slate-100 text-slate-700 font-medium text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors active:scale-[0.98]"
+                className="liquid-button flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98]"
               >
                 別の画像で試す
               </button>
@@ -515,8 +499,8 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         )}
 
         {imageFile && !processedUrl && (
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+          <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
             <span>選択中: {imageFile.name}</span>
           </div>
         )}

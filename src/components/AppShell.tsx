@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         "image" in data
       ) {
         setIntroduction(
-          data as { name: string; zikosyoukai: string; image: { url: string } }
+          data as { name: string; zikosyoukai: string; image: { url: string } },
         );
       }
     } catch (e) {
@@ -201,12 +201,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       apiUsage.count,
       apiUsage.limit,
       apiUsage.hydrated,
-    ]
+    ],
   );
 
   return (
     <AppShellContext.Provider value={contextValue}>
-      <div className="min-h-dvh bg-[#F2F2F7]">
+      <div className="min-h-dvh">
         <Navbar
           onHistoryClick={() => {
             setHistoryOpen(true);

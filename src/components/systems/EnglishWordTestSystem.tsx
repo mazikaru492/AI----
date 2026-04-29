@@ -66,9 +66,13 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
         const contentType = response.headers.get("Content-Type") ?? "";
         if (contentType.includes("application/json")) {
           const errorBody = (await response.json()) as { error?: string };
-          throw new Error(errorBody.error || `生成に失敗しました (${response.status})`);
+          throw new Error(
+            errorBody.error || `生成に失敗しました (${response.status})`,
+          );
         }
-        const plainText = (await response.text()).replace(/<[^>]*>/g, " ").trim();
+        const plainText = (await response.text())
+          .replace(/<[^>]*>/g, " ")
+          .trim();
         throw new Error(plainText || `生成に失敗しました (${response.status})`);
       }
 
@@ -122,27 +126,27 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#F2F2F7] -z-10" />
+      <div className="liquid-page-bg" />
       <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+          className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
           システム選択に戻る
         </button>
 
-        <section className="rounded-[32px] border border-white/40 bg-white/75 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <section className="liquid-panel rounded-[32px] p-5">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
             英語 単語穴埋めテスト
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
           </p>
         </section>
 
-        <section className="rounded-[32px] border border-white/40 bg-white/75 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
+        <section className="liquid-panel rounded-[32px] p-5">
           <input
             ref={fileInputRef}
             type="file"
@@ -157,35 +161,35 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           <button
             type="button"
             onClick={openFilePicker}
-            className="mb-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#007AFF]/10 text-[#007AFF] hover:bg-[#007AFF]/15"
+            className="liquid-button mb-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl" style={{ color: '#60a5fa' }}
           >
             <FileSpreadsheet className="h-5 w-5" />
             Excelファイルを選択
           </button>
 
-          <p className="mb-4 text-sm text-slate-600">{selectedFileLabel}</p>
+          <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{selectedFileLabel}</p>
 
           <div className="grid gap-3">
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               単語範囲 (例: A2:A50)
               <input
                 value={range}
                 onChange={(e) => setRange(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none ring-[#007AFF] focus:ring-2"
+                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
 
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               シート名 (任意)
               <input
                 value={sheetName}
                 onChange={(e) => setSheetName(e.target.value)}
                 placeholder="空欄なら先頭シート"
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none ring-[#007AFF] focus:ring-2"
+                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
 
-            <label className="text-sm font-medium text-slate-700">
+            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               出題数
               <input
                 type="number"
@@ -193,9 +197,11 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
                 max={50}
                 value={questionCount}
                 onChange={(e) =>
-                  setQuestionCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))
+                  setQuestionCount(
+                    Math.max(1, Math.min(50, Number(e.target.value) || 1)),
+                  )
                 }
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none ring-[#007AFF] focus:ring-2"
+                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
           </div>
@@ -204,7 +210,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#007AFF] text-base font-semibold text-white shadow-[0_4px_14px_rgb(0,122,255,0.25)] transition-colors hover:bg-[#0066DD] disabled:opacity-70"
+            className="liquid-button-primary mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold transition-colors disabled:opacity-70"
           >
             {isGenerating ? (
               <>
@@ -220,12 +226,12 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           </button>
 
           {status && !error && (
-            <p className="mt-4 rounded-xl bg-[#34C759]/10 px-3 py-2 text-sm font-medium text-[#1f8b43]">
+            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium" style={{ color: '#4ade80', borderColor: 'rgba(34, 197, 94, 0.2)' }}>
               {status}
             </p>
           )}
           {error && (
-            <p className="mt-4 rounded-xl bg-[#FF3B30]/10 px-3 py-2 text-sm font-medium text-[#d4281f]">
+            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium" style={{ color: '#f87171', borderColor: 'rgba(248, 113, 113, 0.2)' }}>
               {error}
             </p>
           )}

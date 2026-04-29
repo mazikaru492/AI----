@@ -50,22 +50,26 @@ export function AdBanner({
     return (
       <div
         className={`
-          rounded-2xl border-2 border-dashed border-slate-300
-          bg-slate-50/50 backdrop-blur-sm
+          rounded-2xl border-2 border-dashed
           p-4 text-center
           ${className}
         `}
+        style={{
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(12px)',
+        }}
         data-ad-slot={slot}
         data-ad-position={position}
       >
         <div className="flex flex-col items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
             <span className="text-lg">📢</span>
           </div>
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
             Ad Placeholder
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             Slot: {slot} | Position: {position}
           </p>
         </div>
@@ -102,11 +106,15 @@ export function AdContainer({
   return (
     <section
       className={`
-        rounded-[32px] bg-white/70 backdrop-blur-2xl
-        border border-white/40 shadow-xl shadow-black/5
+        rounded-[32px] backdrop-blur-2xl
+        shadow-xl shadow-black/5
         p-4 animate-in fade-in slide-in-from-bottom-4 duration-500
         ${className}
       `}
+      style={{
+        background: 'rgba(255, 255, 255, 0.06)',
+        border: '0.5px solid rgba(255, 255, 255, 0.1)',
+      }}
     >
       {children}
     </section>

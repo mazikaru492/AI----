@@ -18,31 +18,20 @@ const ICON_MAP: Record<SystemIcon, ComponentType<{ className?: string }>> = {
 export function SystemSelector({ systems, onSelect }: SystemSelectorProps) {
   return (
     <>
-      <div className="fixed inset-0 bg-[#F2F2F7] -z-10">
-        <div
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-40"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(0,122,255,0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-        />
-        <div
-          className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full opacity-30"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(52,199,89,0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-        />
-      </div>
+      <div className="liquid-page-bg" />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-5 py-8">
         <header className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          <h1
+            className="text-3xl font-bold tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
             AI問題変換
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p
+            className="mt-2 text-sm"
+            style={{ color: 'var(--text-secondary)' }}
+          >
             使いたいシステムを選択してください
           </p>
         </header>
@@ -56,18 +45,34 @@ export function SystemSelector({ systems, onSelect }: SystemSelectorProps) {
                 type="button"
                 disabled={!system.enabled}
                 onClick={() => onSelect(system.id)}
-                className="group rounded-[28px] border border-white/40 bg-white/75 p-6 text-left shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl transition-all hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="liquid-panel group rounded-[28px] p-6 text-left transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]">
+                {/* アイコン: ブルーグラス風の背景 */}
+                <div
+                  className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                  style={{
+                    background: 'var(--primary-soft)',
+                    color: '#60a5fa',
+                  }}
+                >
                   <Icon className="h-6 w-6" />
                 </div>
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2
+                  className="text-xl font-semibold"
+                  style={{ color: 'var(--text-primary)' }}
+                >
                   {system.title}
                 </h2>
-                <p className="mt-1 text-sm font-medium text-[#007AFF]">
+                <p
+                  className="mt-1 text-sm font-medium"
+                  style={{ color: '#60a5fa' }}
+                >
                   {system.subtitle}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                <p
+                  className="mt-3 text-sm leading-relaxed"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
                   {system.description}
                 </p>
               </button>

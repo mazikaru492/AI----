@@ -19,7 +19,7 @@ export function PdfDownloadButton({
       {({ loading }) => (
         <button
           type="button"
-          className="h-12 w-full rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          className="liquid-button-primary h-12 w-full rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
           disabled={loading}
         >
           {loading ? "PDF生成中…" : "PDFをダウンロード"}
