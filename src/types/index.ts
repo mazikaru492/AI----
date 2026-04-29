@@ -7,4 +7,5 @@ export type { ProblemItem, GenerateResult } from './problem';
 export type { HistoryEntry } from './history';
 export type { Introduction } from './introduction';
 export type { BoundingBox, NumberReplacement } from './canvas';
+export type { LearningSystemDefinition, SystemIcon } from './system';
 
