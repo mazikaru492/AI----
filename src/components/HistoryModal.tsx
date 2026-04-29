@@ -14,6 +14,8 @@ interface HistoryModalProps {
 
 /**
  * 履歴モーダル — iOS 26 Liquid Glass
+ * PC: 中央配置、max-w-lg、余裕のあるパディング
+ * スマホ: ほぼフルスクリーン幅、上部固定
  */
 export function HistoryModal({
   isOpen,
@@ -26,35 +28,35 @@ export function HistoryModal({
 
   return (
     <div
-      className="liquid-overlay fixed inset-0 z-50 flex items-start justify-center px-4 pt-16"
+      className="liquid-overlay fixed inset-0 z-50 flex items-start justify-center px-3 md:px-4 pt-12 md:pt-16"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-[28px] p-4"
+        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-[24px] md:rounded-[28px] p-3.5 md:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white drop-shadow-sm">
+          <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
             変換履歴
             {!isLoading && history.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-white/60">
+              <span className="ml-1.5 md:ml-2 text-[10px] md:text-xs font-normal text-white/60">
                 ({history.length}件)
               </span>
             )}
           </h2>
           <button
             type="button"
-            className="liquid-button inline-flex h-9 w-9 items-center justify-center rounded-xl"
+            className="liquid-button inline-flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl"
             onClick={onClose}
             aria-label="close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 md:h-5 md:w-5" />
           </button>
         </div>
 
-        <div className="mt-3 max-h-[60dvh] overflow-auto">
+        <div className="mt-2.5 md:mt-3 max-h-[55dvh] md:max-h-[65dvh] overflow-auto">
           <HistoryList
             history={history}
             isLoading={isLoading}

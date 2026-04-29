@@ -429,3 +429,111 @@ body::after {
   background: rgba(0, 122, 255, 0.35);
   color: #ffffff;
 }
+
+/* ================================================================
+   Responsive: Mobile-first (< 768px)
+   タッチフレンドリー・safe-area対応
+   ================================================================ */
+
+/* safe-area-inset（ノッチ・ホームインジケーター対応） */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* タッチデバイスでホバーを無効化（ゴースト状態を防ぐ） */
+@media (hover: none) {
+  .liquid-panel:hover {
+    transform: none;
+    background: linear-gradient(
+      170deg,
+      rgba(255, 255, 255, 0.40) 0%,
+      rgba(255, 255, 255, 0.18) 50%,
+      rgba(255, 255, 255, 0.25) 100%
+    );
+    border-color: var(--glass-border);
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1.5px 0 var(--glass-highlight-top),
+      inset 0 -1px 0 var(--glass-highlight-bottom),
+      inset 1px 0 0 var(--glass-highlight-edge),
+      inset -1px 0 0 var(--glass-highlight-edge),
+      inset 0 4px 12px rgba(255, 255, 255, 0.12);
+  }
+
+  .liquid-button:hover {
+    transform: none;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.30) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.60);
+    box-shadow:
+      0 4px 12px rgba(0, 40, 80, 0.10),
+      0 1px 3px rgba(0, 40, 80, 0.06),
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.80),
+      inset 0 -0.5px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* スマホ: タッチターゲット最小サイズ保証 */
+@media (max-width: 767px) {
+  /* ボタン最小高さを44pxに（iOS HIG準拠） */
+  .liquid-button {
+    min-height: 44px;
+  }
+
+  /* パネルの角丸を少し小さくしてスマホ画面に馴染ませる */
+  .liquid-panel {
+    border-radius: 24px;
+  }
+
+  /* モーダルをほぼフルスクリーンに */
+  .liquid-overlay {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ================================================================
+   Responsive: Desktop (>= 768px)
+   PCの大画面を有効活用
+   ================================================================ */
+
+@media (min-width: 768px) {
+  /* PCでのホバーフィードバックを強化 */
+  .liquid-panel {
+    transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .liquid-button {
+    transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* PCではより大きな角丸でプレミアム感 */
+  .liquid-panel {
+    border-radius: 32px;
+  }
+}
+
+/* ================================================================
+   Responsive: Large Desktop (>= 1280px)
+   ================================================================ */
+
+@media (min-width: 1280px) {
+  .liquid-panel {
+    box-shadow:
+      0 12px 40px rgba(0, 40, 80, 0.16),
+      0 3px 10px rgba(0, 40, 80, 0.10),
+      inset 0 1.5px 0 var(--glass-highlight-top),
+      inset 0 -1px 0 var(--glass-highlight-bottom),
+      inset 1px 0 0 var(--glass-highlight-edge),
+      inset -1px 0 0 var(--glass-highlight-edge),
+      inset 0 4px 12px rgba(255, 255, 255, 0.12);
+  }
+}

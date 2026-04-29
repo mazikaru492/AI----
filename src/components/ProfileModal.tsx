@@ -15,6 +15,8 @@ interface ProfileModalProps {
 
 /**
  * 制作者紹介モーダル — iOS 26 Liquid Glass
+ * PC: 中央配置、max-w-lg
+ * スマホ: ほぼフルスクリーン幅
  */
 export function ProfileModal({
   isOpen,
@@ -28,35 +30,35 @@ export function ProfileModal({
 
   return (
     <div
-      className="liquid-overlay fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="liquid-overlay fixed inset-0 z-50 flex items-center justify-center px-3 md:px-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-[28px] p-5"
+        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-[24px] md:rounded-[28px] p-4 md:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white drop-shadow-sm">制作者の紹介</h2>
+          <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">制作者の紹介</h2>
           <button
             type="button"
-            className="liquid-button inline-flex h-9 w-9 items-center justify-center rounded-xl"
+            className="liquid-button inline-flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl"
             onClick={onClose}
             aria-label="close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 md:h-5 md:w-5" />
           </button>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-3 md:mt-4">
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-14 w-14 animate-pulse rounded-full liquid-skeleton" />
+                <div className="h-12 w-12 md:h-14 md:w-14 animate-pulse rounded-full liquid-skeleton" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-40 liquid-skeleton" />
-                  <div className="h-3 w-28 liquid-skeleton" />
+                  <div className="h-4 w-36 md:w-40 liquid-skeleton" />
+                  <div className="h-3 w-24 md:w-28 liquid-skeleton" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -67,44 +69,44 @@ export function ProfileModal({
             </div>
           ) : error ? (
             <div className="liquid-panel-soft rounded-xl p-3" style={{ borderColor: "rgba(255, 59, 48, 0.3)" }}>
-              <p className="text-sm font-medium text-red-200">{error}</p>
+              <p className="text-xs md:text-sm font-medium text-red-200">{error}</p>
               <button
                 type="button"
-                className="liquid-button-primary mt-3 h-11 w-full rounded-xl px-4 text-sm font-semibold"
+                className="liquid-button-primary mt-3 h-10 md:h-11 w-full rounded-xl px-4 text-xs md:text-sm font-semibold"
                 onClick={onRetry}
               >
                 再読み込み
               </button>
             </div>
           ) : introduction ? (
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               <div className="flex items-center gap-3">
-                <div className="relative h-14 w-14 overflow-hidden rounded-full ring-2 ring-white/30">
+                <div className="relative h-12 w-12 md:h-14 md:w-14 overflow-hidden rounded-full ring-2 ring-white/30">
                   {introduction.image?.url ? (
                     <Image
                       src={introduction.image.url}
                       alt={introduction.name}
                       fill
                       className="object-cover"
-                      sizes="56px"
+                      sizes="(max-width: 768px) 48px, 56px"
                     />
                   ) : (
                     <div className="h-full w-full liquid-skeleton" />
                   )}
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-white drop-shadow-sm">{introduction.name}</p>
-                  <p className="mt-0.5 text-xs font-medium text-white/65">制作者プロフィール</p>
+                  <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">{introduction.name}</p>
+                  <p className="mt-0.5 text-[10px] md:text-xs font-medium text-white/65">制作者プロフィール</p>
                 </div>
               </div>
 
               <div className="liquid-panel-soft rounded-xl p-3">
-                <p className="whitespace-pre-wrap text-sm text-white/90">{introduction.zikosyoukai}</p>
+                <p className="whitespace-pre-wrap text-xs md:text-sm text-white/90">{introduction.zikosyoukai}</p>
               </div>
 
               <button
                 type="button"
-                className="liquid-button h-11 w-full rounded-xl px-4 text-sm font-semibold"
+                className="liquid-button h-10 md:h-11 w-full rounded-xl px-4 text-xs md:text-sm font-semibold"
                 onClick={onClose}
               >
                 閉じる
@@ -112,7 +114,7 @@ export function ProfileModal({
             </div>
           ) : (
             <div className="liquid-panel-soft rounded-xl p-3">
-              <p className="text-sm text-white/65">読み込み準備中です。</p>
+              <p className="text-xs md:text-sm text-white/65">読み込み準備中です。</p>
             </div>
           )}
         </div>

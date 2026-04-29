@@ -127,26 +127,26 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
   return (
     <>
       <div className="liquid-page-bg" />
-      <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
+      <main className="mx-auto flex w-full max-w-lg md:max-w-2xl flex-col gap-4 md:gap-6 px-4 md:px-8 py-4 md:py-8">
         <button
           type="button"
           onClick={onBack}
-          className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+          className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
           システム選択に戻る
         </button>
 
-        <section className="liquid-panel rounded-[32px] p-5">
-          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
+        <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow-sm">
             英語 単語穴埋めテスト
           </h1>
-          <p className="mt-2 text-sm text-white/75">
+          <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-white/75">
             Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
           </p>
         </section>
 
-        <section className="liquid-panel rounded-[32px] p-5">
+        <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
           <input
             ref={fileInputRef}
             type="file"
@@ -161,35 +161,35 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           <button
             type="button"
             onClick={openFilePicker}
-            className="liquid-button mb-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-white/90"
+            className="liquid-button mb-3 md:mb-4 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-2xl text-white/90 text-sm md:text-base"
           >
             <FileSpreadsheet className="h-5 w-5" />
             Excelファイルを選択
           </button>
 
-          <p className="mb-4 text-sm text-white/70">{selectedFileLabel}</p>
+          <p className="mb-3 md:mb-4 text-xs md:text-sm text-white/70">{selectedFileLabel}</p>
 
           <div className="grid gap-3">
-            <label className="text-sm font-medium text-white/80">
+            <label className="text-xs md:text-sm font-medium text-white/80">
               単語範囲 (例: A2:A50)
               <input
                 value={range}
                 onChange={(e) => setRange(e.target.value)}
-                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
+                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
 
-            <label className="text-sm font-medium text-white/80">
+            <label className="text-xs md:text-sm font-medium text-white/80">
               シート名 (任意)
               <input
                 value={sheetName}
                 onChange={(e) => setSheetName(e.target.value)}
                 placeholder="空欄なら先頭シート"
-                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
+                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
 
-            <label className="text-sm font-medium text-white/80">
+            <label className="text-xs md:text-sm font-medium text-white/80">
               出題数
               <input
                 type="number"
@@ -201,7 +201,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
                     Math.max(1, Math.min(50, Number(e.target.value) || 1)),
                   )
                 }
-                className="liquid-input mt-1 h-11 w-full rounded-xl px-3 text-sm"
+                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
               />
             </label>
           </div>
@@ -210,7 +210,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="liquid-button-primary mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold transition-colors disabled:opacity-70"
+            className="liquid-button-primary mt-4 md:mt-5 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-70"
           >
             {isGenerating ? (
               <>

@@ -299,21 +299,21 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
 
       <canvas ref={canvasRef} className="hidden" />
 
-      <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 py-6">
+      <main className="mx-auto flex w-full max-w-lg md:max-w-2xl flex-col gap-4 md:gap-6 px-4 md:px-8 py-4 md:py-8">
         <button
           type="button"
           onClick={onBack}
-          className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+          className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
           システム選択に戻る
         </button>
 
         <div className="text-center pt-2">
-          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow-sm">
             AI問題変換
           </h1>
-          <p className="mt-1 text-sm text-white/75">
+          <p className="mt-1 text-xs md:text-sm text-white/75">
             問題用紙を撮影すると、数値だけ変えた類題を作成します
           </p>
           <div className="flex justify-center mt-3">
@@ -343,7 +343,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           onChange={handleFileChange}
         />
 
-        <section className="liquid-panel overflow-hidden rounded-[32px]">
+        <section className="liquid-panel overflow-hidden rounded-[24px] md:rounded-[32px]">
           <div className="relative">
             {previewUrl ? (
               <div className="relative aspect-[4/3]" style={{ background: 'rgba(255, 255, 255, 0.08)' }}>
@@ -356,7 +356,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={clearFile}
                   disabled={isProcessing}
-                  className="liquid-button absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
+                  className="liquid-button absolute right-2 top-2 md:right-3 md:top-3 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -364,7 +364,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={openCameraPicker}
                   disabled={isProcessing}
-                  className="liquid-button absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                  className="liquid-button absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <Camera className="w-4 h-4" />
                   撮り直し
@@ -373,7 +373,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                   type="button"
                   onClick={openFilePicker}
                   disabled={isProcessing}
-                  className="liquid-button absolute bottom-3 left-3 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                  className="liquid-button absolute bottom-2 left-2 md:bottom-3 md:left-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
                 >
                   <ImageIcon className="w-4 h-4" />
                   ファイル
@@ -386,11 +386,11 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 disabled={isProcessing}
                 className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
               >
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
-                  <Camera className="w-10 h-10 text-white stroke-[1.5] drop-shadow-sm" />
+                <div className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
+                  <Camera className="w-8 h-8 md:w-10 md:h-10 text-white stroke-[1.5] drop-shadow-sm" />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold text-white drop-shadow-sm">
+                  <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
                     カメラで撮影
                   </p>
                   <p className="text-sm mt-1 text-white/55">
@@ -406,7 +406,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={openFilePicker}
                 disabled={isProcessing}
-                className="liquid-button flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+                className="liquid-button flex h-11 md:h-11 w-full items-center justify-center gap-2 rounded-full text-xs md:text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
               >
                 <ImageIcon className="w-4 h-4" />
                 ファイルから画像を選択
@@ -420,7 +420,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={processImage}
                 disabled={isProcessing}
-                className="liquid-button-primary relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
+                className="liquid-button-primary relative flex h-12 md:h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-sm md:text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
               >
                 {!isProcessing && (
                   <div
@@ -446,7 +446,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           )}
 
           {error && (
-            <div className="liquid-panel-soft mx-4 mb-4 rounded-2xl p-4" style={{ borderColor: 'rgba(255, 59, 48, 0.3)' }}>
+            <div className="liquid-panel-soft mx-3 md:mx-4 mb-3 md:mb-4 rounded-xl md:rounded-2xl p-3 md:p-4" style={{ borderColor: 'rgba(255, 59, 48, 0.3)' }}>
               <p className="text-sm font-medium text-red-200">{error}</p>
             </div>
           )}
@@ -455,9 +455,9 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         <AdBanner slot="main-page-middle" position="middle" enabled={false} />
 
         {processedUrl && (
-          <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[32px]">
+          <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[24px] md:rounded-[32px]">
             <div className="p-4 pb-0">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-white drop-shadow-sm">
+              <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold text-white drop-shadow-sm">
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
                   <CheckCircle2 className="h-5 w-5" />
                 </span>
