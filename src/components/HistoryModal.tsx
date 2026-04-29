@@ -13,8 +13,7 @@ interface HistoryModalProps {
 }
 
 /**
- * 履歴モーダル
- * Liquid Glass オーバーレイ + ガラスパネル
+ * 履歴モーダル — iOS 26 Liquid Glass
  */
 export function HistoryModal({
   isOpen,
@@ -33,14 +32,14 @@ export function HistoryModal({
       onClick={onClose}
     >
       <div
-        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-2xl p-4"
+        className="liquid-panel animate-modalSlideUp w-full max-w-md rounded-[28px] p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="text-sm font-semibold text-white drop-shadow-sm">
             変換履歴
             {!isLoading && history.length > 0 && (
-              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
+              <span className="ml-2 text-xs font-normal text-white/60">
                 ({history.length}件)
               </span>
             )}
@@ -51,7 +50,7 @@ export function HistoryModal({
             onClick={onClose}
             aria-label="close"
           >
-            <X className="h-5 w-5" style={{ color: 'var(--text-secondary)' }} />
+            <X className="h-5 w-5" />
           </button>
         </div>
 

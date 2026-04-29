@@ -55,21 +55,21 @@ export function AdBanner({
           ${className}
         `}
         style={{
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(12px)',
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(16px)',
         }}
         data-ad-slot={slot}
         data-ad-position={position}
       >
         <div className="flex flex-col items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: 'rgba(255, 255, 255, 0.25)' }}>
             <span className="text-lg">📢</span>
           </div>
-          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-sm font-medium text-white/55">
             Ad Placeholder
           </p>
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs text-white/55">
             Slot: {slot} | Position: {position}
           </p>
         </div>

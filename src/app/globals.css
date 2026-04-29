@@ -1,69 +1,59 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Apple Liquid Glass Design System
-   - 深いダーク背景でガラスの透過・屈折を最大限に引き立てる
-   - 目に優しい低輝度・高コントラスト設計
+   iOS 26 Liquid Glass Design System
+   - 明るいブルー〜ティール〜グリーンのグラデーション背景
+   - 物理的な液体ガラスの屈折・透過効果
+   - 水滴のような表面張力・光沢感
    ================================================================ */
 
 :root {
-  /* === ベースカラー（ダークテーマ） === */
-  --background: #0a0a0f;
-  --foreground: #f0f0f5;
+  --background: #0e5e92;
+  --foreground: #ffffff;
 
-  /* === 背景グラデーション === */
-  --surface-gradient: linear-gradient(
-    145deg,
-    #0d0d14 0%,
-    #0f1018 40%,
-    #0a0b12 100%
-  );
+  /* === ガラスマテリアル (Liquid Glass - Light) === */
+  --glass-bg: rgba(255, 255, 255, 0.22);
+  --glass-bg-strong: rgba(255, 255, 255, 0.32);
+  --glass-bg-hover: rgba(255, 255, 255, 0.38);
 
-  /* === ガラスマテリアル (Liquid Glass) === */
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-bg-strong: rgba(255, 255, 255, 0.10);
-  --glass-bg-hover: rgba(255, 255, 255, 0.12);
+  /* ガラス端のスペクトルボーダー（光の屈折） */
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-border-strong: rgba(255, 255, 255, 0.55);
+  --glass-border-hover: rgba(255, 255, 255, 0.65);
 
-  /* スペクトルボーダー: 光がガラス端を通過する効果 */
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-strong: rgba(255, 255, 255, 0.18);
-  --glass-border-hover: rgba(255, 255, 255, 0.22);
-
-  /* マルチレイヤーシャドウ: 深度と浮遊感 */
+  /* マルチレイヤーシャドウ（ガラスの深度・浮遊感） */
   --glass-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.25);
+    0 8px 32px rgba(0, 40, 80, 0.15),
+    0 2px 8px rgba(0, 40, 80, 0.10);
   --glass-shadow-soft:
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    0 1px 4px rgba(0, 0, 0, 0.2);
+    0 4px 16px rgba(0, 40, 80, 0.10),
+    0 1px 4px rgba(0, 40, 80, 0.08);
   --glass-shadow-elevated:
-    0 16px 48px rgba(0, 0, 0, 0.45),
-    0 4px 16px rgba(0, 0, 0, 0.3);
+    0 20px 50px rgba(0, 40, 80, 0.20),
+    0 6px 20px rgba(0, 40, 80, 0.12);
 
-  /* スペクトルハイライト: ガラス上端の光の屈折 */
-  --glass-highlight-top: rgba(255, 255, 255, 0.15);
-  --glass-highlight-bottom: rgba(255, 255, 255, 0.03);
+  /* スペクトルハイライト（ガラス上端の輝き） */
+  --glass-highlight-top: rgba(255, 255, 255, 0.7);
+  --glass-highlight-bottom: rgba(255, 255, 255, 0.15);
+  --glass-highlight-edge: rgba(255, 255, 255, 0.35);
 
   /* === テキストカラー === */
-  --text-primary: #f0f0f5;
-  --text-secondary: rgba(240, 240, 245, 0.65);
-  --text-tertiary: rgba(240, 240, 245, 0.4);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.80);
+  --text-tertiary: rgba(255, 255, 255, 0.55);
+  --text-on-glass: #1a3a5c;
+  --text-on-glass-secondary: rgba(26, 58, 92, 0.7);
 
   /* === アクセントカラー === */
-  --primary: #3b82f6;
-  --primary-soft: rgba(59, 130, 246, 0.2);
-  --primary-deep: #2563eb;
-  --success: #22c55e;
-  --success-soft: rgba(34, 197, 94, 0.2);
-  --danger: #ef4444;
-  --danger-soft: rgba(239, 68, 68, 0.15);
-  --warning: #f59e0b;
-  --warning-soft: rgba(245, 158, 11, 0.15);
-
-  /* === アンビエントライト（背景の色のにじみ） === */
-  --ambient-blue: rgba(59, 130, 246, 0.08);
-  --ambient-purple: rgba(139, 92, 246, 0.06);
-  --ambient-teal: rgba(20, 184, 166, 0.05);
+  --primary: #007aff;
+  --primary-soft: rgba(0, 122, 255, 0.2);
+  --primary-deep: #005ecb;
+  --success: #34c759;
+  --success-soft: rgba(52, 199, 89, 0.2);
+  --danger: #ff3b30;
+  --danger-soft: rgba(255, 59, 48, 0.15);
+  --warning: #ff9500;
+  --warning-soft: rgba(255, 149, 0, 0.15);
 }
 
 @theme inline {
@@ -74,11 +64,11 @@
 }
 
 /* ================================================================
-   Body & Background
+   Body
    ================================================================ */
 
 body {
-  background: var(--background);
+  background: #0e5e92;
   color: var(--foreground);
   font-family:
     var(--font-geist-sans), "SF Pro Display", "SF Pro Text",
@@ -86,46 +76,17 @@ body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-/* アンビエントライト: 画面端に微かな色のにじみ */
+/* body::before/after は LiquidGlassBackground (Canvas) に置換 */
 body::before,
 body::after {
-  content: "";
-  position: fixed;
-  inset: auto;
-  pointer-events: none;
-  z-index: -20;
-  border-radius: 999px;
-  filter: blur(120px);
-}
-
-body::before {
-  top: -200px;
-  right: -150px;
-  width: 600px;
-  height: 500px;
-  background: radial-gradient(
-    circle,
-    var(--ambient-blue) 0%,
-    transparent 70%
-  );
-}
-
-body::after {
-  left: -180px;
-  bottom: -200px;
-  width: 650px;
-  height: 500px;
-  background: radial-gradient(
-    circle,
-    var(--ambient-purple) 0%,
-    transparent 70%
-  );
+  display: none;
 }
 
 /* ================================================================
-   Liquid Page Background
+   .liquid-page-bg は背景コンポーネントと干渉しないように透過化
    ================================================================ */
 
 .liquid-page-bg {
@@ -133,118 +94,123 @@ body::after {
   inset: 0;
   z-index: -10;
   overflow: hidden;
-  background: var(--surface-gradient);
+  background: transparent;
+  pointer-events: none;
 }
 
 .liquid-page-bg::before,
 .liquid-page-bg::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(100px);
-  pointer-events: none;
-}
-
-.liquid-page-bg::before {
-  width: 500px;
-  height: 500px;
-  top: -220px;
-  right: -160px;
-  background: radial-gradient(
-    circle,
-    rgba(59, 130, 246, 0.07) 0%,
-    transparent 70%
-  );
-  animation: ambientDrift 20s ease-in-out infinite alternate;
-}
-
-.liquid-page-bg::after {
-  width: 500px;
-  height: 500px;
-  left: -180px;
-  bottom: -220px;
-  background: radial-gradient(
-    circle,
-    rgba(139, 92, 246, 0.05) 0%,
-    transparent 70%
-  );
-  animation: ambientDrift 25s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes ambientDrift {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(30px, 20px) scale(1.05); }
-  100% { transform: translate(-20px, -15px) scale(0.95); }
+  display: none;
 }
 
 /* ================================================================
-   Liquid Glass Panel (Core)
-   Apple Liquid Glass の核心: 多層構造のガラスマテリアル
+   Liquid Glass Panel (Core) — iOS 26 忠実再現
+   物理的な液体ガラスの質感:
+   - 高い透過性 + 強力なblur → 背景が透けて見える
+   - スペクトルエッジ → ガラスの端で光が屈折
+   - 多層inner shadow → ガラスの厚みと立体感
+   - SVGフィルターによる微妙な屈折歪み
    ================================================================ */
 
 .liquid-panel {
+  position: relative;
   background: linear-gradient(
-    165deg,
-    var(--glass-bg-strong) 0%,
-    var(--glass-bg) 100%
+    170deg,
+    rgba(255, 255, 255, 0.40) 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.25) 100%
   );
-  border: 0.5px solid var(--glass-border);
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
   box-shadow:
+    /* 外側ドロップシャドウ（浮遊感） */
     var(--glass-shadow),
-    /* スペクトルハイライト: 上端に光の線 */
-    inset 0 0.5px 0 var(--glass-highlight-top),
-    /* 底部のかすかな反射 */
-    inset 0 -0.5px 0 var(--glass-highlight-bottom);
-  backdrop-filter: saturate(180%) blur(40px);
-  -webkit-backdrop-filter: saturate(180%) blur(40px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* 上端スペクトルハイライト（ガラス表面の光沢） */
+    inset 0 1.5px 0 var(--glass-highlight-top),
+    /* 下端の柔らかい反射 */
+    inset 0 -1px 0 var(--glass-highlight-bottom),
+    /* 左右エッジの光 */
+    inset 1px 0 0 var(--glass-highlight-edge),
+    inset -1px 0 0 var(--glass-highlight-edge),
+    /* ガラス内部の奥行き感 */
+    inset 0 4px 12px rgba(255, 255, 255, 0.12);
+  backdrop-filter: saturate(200%) blur(40px);
+  -webkit-backdrop-filter: saturate(200%) blur(40px);
+  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.liquid-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* 表面の虹彩光沢（液体ガラスの表面張力を表現） */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    transparent 30%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
 }
 
 .liquid-panel:hover {
   background: linear-gradient(
-    165deg,
-    var(--glass-bg-hover) 0%,
-    var(--glass-bg-strong) 100%
+    170deg,
+    rgba(255, 255, 255, 0.48) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.30) 100%
   );
   border-color: var(--glass-border-hover);
   box-shadow:
     var(--glass-shadow-elevated),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -0.5px 0 var(--glass-highlight-bottom);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 var(--glass-highlight-bottom),
+    inset 1px 0 0 var(--glass-highlight-edge),
+    inset -1px 0 0 var(--glass-highlight-edge),
+    inset 0 4px 12px rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
 }
 
-/* === Soft Panel: より柔らかいガラスパネル === */
+/* === Soft Panel === */
 .liquid-panel-soft {
+  position: relative;
   background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.07) 0%,
-    rgba(255, 255, 255, 0.04) 100%
+    170deg,
+    rgba(255, 255, 255, 0.30) 0%,
+    rgba(255, 255, 255, 0.15) 100%
   );
-  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow:
     var(--glass-shadow-soft),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: saturate(160%) blur(30px);
-  -webkit-backdrop-filter: saturate(160%) blur(30px);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
 }
 
 /* ================================================================
-   Liquid Glass Button
+   Liquid Glass Button — 水滴のようなボタン
    ================================================================ */
 
 .liquid-button {
+  position: relative;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.06) 100%
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.30) 100%
   );
-  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.60);
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.15);
-  color: var(--text-primary);
-  backdrop-filter: saturate(150%) blur(20px);
-  -webkit-backdrop-filter: saturate(150%) blur(20px);
+    0 4px 12px rgba(0, 40, 80, 0.10),
+    0 1px 3px rgba(0, 40, 80, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.80),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.15);
+  color: var(--text-on-glass);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
   transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   cursor: pointer;
 }
@@ -252,95 +218,80 @@ body::after {
 .liquid-button:hover {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(255, 255, 255, 0.10) 100%
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0.40) 100%
   );
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.75);
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.25),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
+    0 6px 20px rgba(0, 40, 80, 0.14),
+    0 2px 6px rgba(0, 40, 80, 0.08),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.90),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 
 .liquid-button:active {
-  transform: scale(0.97) translateY(0);
+  transform: scale(0.96) translateY(0);
   box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.15),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+    0 2px 6px rgba(0, 40, 80, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .liquid-button:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
   transform: none;
 }
 
-/* === Primary Button: ブルーグラス === */
+/* === Primary Button === */
 .liquid-button-primary {
   background: linear-gradient(
-    165deg,
-    rgba(59, 130, 246, 0.7) 0%,
-    rgba(37, 99, 235, 0.85) 60%,
-    rgba(29, 78, 216, 0.9) 100%
+    170deg,
+    rgba(0, 122, 255, 0.75) 0%,
+    rgba(0, 94, 203, 0.90) 60%,
+    rgba(0, 70, 170, 0.95) 100%
   );
   color: #ffffff;
-  border: 0.5px solid rgba(96, 165, 250, 0.35);
+  border: 1px solid rgba(100, 180, 255, 0.45);
   box-shadow:
-    0 4px 20px rgba(59, 130, 246, 0.25),
-    0 1px 4px rgba(0, 0, 0, 0.2),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
+    0 6px 24px rgba(0, 122, 255, 0.30),
+    0 2px 6px rgba(0, 40, 80, 0.12),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 .liquid-button-primary:hover {
-  background: linear-gradient(
-    165deg,
-    rgba(59, 130, 246, 0.8) 0%,
-    rgba(37, 99, 235, 0.9) 60%,
-    rgba(29, 78, 216, 0.95) 100%
-  );
   box-shadow:
-    0 8px 28px rgba(59, 130, 246, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.3);
+    0 10px 32px rgba(0, 122, 255, 0.40),
+    0 3px 10px rgba(0, 40, 80, 0.15),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* === Success Button: グリーングラス === */
+/* === Success Button === */
 .liquid-button-success {
   background: linear-gradient(
-    165deg,
-    rgba(34, 197, 94, 0.65) 0%,
-    rgba(22, 163, 74, 0.8) 60%,
-    rgba(21, 128, 61, 0.9) 100%
+    170deg,
+    rgba(52, 199, 89, 0.70) 0%,
+    rgba(40, 167, 69, 0.85) 60%,
+    rgba(30, 130, 55, 0.95) 100%
   );
   color: #ffffff;
-  border: 0.5px solid rgba(74, 222, 128, 0.3);
+  border: 1px solid rgba(100, 220, 140, 0.40);
   box-shadow:
-    0 4px 20px rgba(34, 197, 94, 0.2),
-    0 1px 4px rgba(0, 0, 0, 0.2),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+    0 6px 24px rgba(52, 199, 89, 0.25),
+    0 2px 6px rgba(0, 40, 80, 0.10),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.08);
 }
 
 .liquid-button-success:hover {
   box-shadow:
-    0 8px 28px rgba(34, 197, 94, 0.3),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
-}
-
-/* === Danger Button: レッドグラス === */
-.liquid-button-danger {
-  background: linear-gradient(
-    165deg,
-    rgba(239, 68, 68, 0.6) 0%,
-    rgba(220, 38, 38, 0.8) 60%,
-    rgba(185, 28, 28, 0.9) 100%
-  );
-  color: #ffffff;
-  border: 0.5px solid rgba(248, 113, 113, 0.3);
-  box-shadow:
-    0 4px 20px rgba(239, 68, 68, 0.2),
-    0 1px 4px rgba(0, 0, 0, 0.2),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+    0 10px 32px rgba(52, 199, 89, 0.35),
+    0 3px 10px rgba(0, 40, 80, 0.12),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.40);
 }
 
 /* ================================================================
@@ -348,41 +299,43 @@ body::after {
    ================================================================ */
 
 .liquid-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 0.5px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  color: var(--text-on-glass);
   box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.2),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: saturate(140%) blur(16px);
-  -webkit-backdrop-filter: saturate(140%) blur(16px);
+    inset 0 2px 4px rgba(0, 40, 80, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
   transition: all 0.2s ease;
 }
 
 .liquid-input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-on-glass-secondary);
 }
 
 .liquid-input:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: rgba(0, 122, 255, 0.6);
   box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12),
-    inset 0 1px 3px rgba(0, 0, 0, 0.15),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.07);
+    0 0 0 3.5px rgba(0, 122, 255, 0.18),
+    inset 0 2px 4px rgba(0, 40, 80, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 /* ================================================================
-   Liquid Glass Chip
+   Liquid Glass Chip — ピル型のガラスチップ
    ================================================================ */
 
 .liquid-chip {
-  background: rgba(255, 255, 255, 0.07);
-  border: 0.5px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
+  box-shadow:
+    0 2px 8px rgba(0, 40, 80, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 /* ================================================================
@@ -390,10 +343,10 @@ body::after {
    ================================================================ */
 
 .liquid-overlay {
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: saturate(120%) blur(16px);
-  -webkit-backdrop-filter: saturate(120%) blur(16px);
-  animation: overlayFadeIn 0.25s ease-out;
+  background: rgba(10, 40, 70, 0.35);
+  backdrop-filter: saturate(150%) blur(20px);
+  -webkit-backdrop-filter: saturate(150%) blur(20px);
+  animation: overlayFadeIn 0.3s ease-out;
 }
 
 @keyframes overlayFadeIn {
@@ -406,14 +359,8 @@ body::after {
    ================================================================ */
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-fadeIn {
@@ -430,37 +377,32 @@ body::after {
   100% { background-position: 200% 0; }
 }
 
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-/* === モーダル登場アニメーション === */
 @keyframes modalSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-modalSlideUp {
-  animation: modalSlideUp 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 水泡浮遊アニメーション */
+@keyframes bubbleFloat {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
 }
 
 /* ================================================================
-   Utility: ガラス効果のスケルトンローダー
+   Skeleton Loader (ガラス風)
    ================================================================ */
 
 .liquid-skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.04) 100%
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.15) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
@@ -468,31 +410,22 @@ body::after {
 }
 
 /* ================================================================
-   Scrollbar Styling (ダークテーマ対応)
+   Scrollbar
    ================================================================ */
 
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 3px;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); }
 
 /* ================================================================
-   Selection Styling
+   Selection
    ================================================================ */
 
 ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(0, 122, 255, 0.35);
   color: #ffffff;
 }

@@ -289,7 +289,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
 
   const usageStatusColor = useMemo(
     () =>
-      apiUsageCount < apiUsageLimit * 0.8 ? '#22c55e' : '#f59e0b',
+      apiUsageCount < apiUsageLimit * 0.8 ? '#34c759' : '#ff9500',
     [apiUsageCount, apiUsageLimit],
   );
 
@@ -310,16 +310,16 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         </button>
 
         <div className="text-center pt-2">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
             AI問題変換
           </h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-sm text-white/75">
             問題用紙を撮影すると、数値だけ変えた類題を作成します
           </p>
           <div className="flex justify-center mt-3">
             <div className="liquid-chip flex items-center gap-2 rounded-full px-3 py-1.5">
               <span className="w-2 h-2 rounded-full" style={{ background: usageStatusColor }} />
-              <span className="font-mono text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              <span className="font-mono text-sm font-medium text-white">
                 {apiUsageCount}/{apiUsageLimit}
               </span>
             </div>
@@ -346,7 +346,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         <section className="liquid-panel overflow-hidden rounded-[32px]">
           <div className="relative">
             {previewUrl ? (
-              <div className="relative aspect-[4/3]" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+              <div className="relative aspect-[4/3]" style={{ background: 'rgba(255, 255, 255, 0.08)' }}>
                 <img
                   src={previewUrl}
                   alt="プレビュー"
@@ -386,14 +386,14 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 disabled={isProcessing}
                 className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
               >
-                <div className="flex h-20 w-20 items-center justify-center rounded-full transition-colors" style={{ background: 'var(--primary-soft)' }}>
-                  <Camera className="w-10 h-10 stroke-[1.5]" style={{ color: '#60a5fa' }} />
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
+                  <Camera className="w-10 h-10 text-white stroke-[1.5] drop-shadow-sm" />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-base font-semibold text-white drop-shadow-sm">
                     カメラで撮影
                   </p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-sm mt-1 text-white/55">
                     タップするとカメラが起動します
                   </p>
                 </div>
@@ -446,8 +446,8 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           )}
 
           {error && (
-            <div className="liquid-panel-soft mx-4 mb-4 rounded-2xl p-4" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
-              <p className="text-sm font-medium" style={{ color: '#f87171' }}>{error}</p>
+            <div className="liquid-panel-soft mx-4 mb-4 rounded-2xl p-4" style={{ borderColor: 'rgba(255, 59, 48, 0.3)' }}>
+              <p className="text-sm font-medium text-red-200">{error}</p>
             </div>
           )}
         </section>
@@ -457,8 +457,8 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         {processedUrl && (
           <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[32px]">
             <div className="p-4 pb-0">
-              <h2 className="flex items-center gap-2 text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'var(--success-soft)', color: '#4ade80' }}>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-white drop-shadow-sm">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
                   <CheckCircle2 className="h-5 w-5" />
                 </span>
                 処理完了
@@ -466,7 +466,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
             </div>
 
             <div className="p-4">
-              <div className="overflow-hidden rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+              <div className="overflow-hidden rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.08)' }}>
                 <img
                   src={processedUrl}
                   alt="処理済み画像"
@@ -499,8 +499,8 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
         )}
 
         {imageFile && !processedUrl && (
-          <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <span className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+          <div className="flex items-center justify-center gap-2 text-sm text-white/75">
+            <span className="w-2 h-2 rounded-full" style={{ background: '#34c759' }} />
             <span>選択中: {imageFile.name}</span>
           </div>
         )}

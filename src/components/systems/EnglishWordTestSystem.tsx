@@ -138,10 +138,10 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
         </button>
 
         <section className="liquid-panel rounded-[32px] p-5">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
             英語 単語穴埋めテスト
           </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-2 text-sm text-white/75">
             Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
           </p>
         </section>
@@ -161,16 +161,16 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           <button
             type="button"
             onClick={openFilePicker}
-            className="liquid-button mb-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl" style={{ color: '#60a5fa' }}
+            className="liquid-button mb-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-white/90"
           >
             <FileSpreadsheet className="h-5 w-5" />
             Excelファイルを選択
           </button>
 
-          <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{selectedFileLabel}</p>
+          <p className="mb-4 text-sm text-white/70">{selectedFileLabel}</p>
 
           <div className="grid gap-3">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <label className="text-sm font-medium text-white/80">
               単語範囲 (例: A2:A50)
               <input
                 value={range}
@@ -179,7 +179,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
               />
             </label>
 
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <label className="text-sm font-medium text-white/80">
               シート名 (任意)
               <input
                 value={sheetName}
@@ -189,7 +189,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
               />
             </label>
 
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <label className="text-sm font-medium text-white/80">
               出題数
               <input
                 type="number"
@@ -226,12 +226,12 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           </button>
 
           {status && !error && (
-            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium" style={{ color: '#4ade80', borderColor: 'rgba(34, 197, 94, 0.2)' }}>
+            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-white/90" style={{ borderColor: 'rgba(52,199,89,0.3)' }}>
               {status}
             </p>
           )}
           {error && (
-            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium" style={{ color: '#f87171', borderColor: 'rgba(248, 113, 113, 0.2)' }}>
+            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-red-200" style={{ borderColor: 'rgba(255,59,48,0.3)' }}>
               {error}
             </p>
           )}

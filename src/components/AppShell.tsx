@@ -15,6 +15,7 @@ import type { ConversionHistoryRow } from "@/lib/supabase";
 import { Navbar } from "./Navbar";
 import { HistoryModal } from "./HistoryModal";
 import { ProfileModal } from "./ProfileModal";
+import { LiquidGlassBackground } from "./LiquidGlassBackground";
 
 // =====================================
 // Context
@@ -207,6 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AppShellContext.Provider value={contextValue}>
       <div className="min-h-dvh">
+        <LiquidGlassBackground />
         <Navbar
           onHistoryClick={() => {
             setHistoryOpen(true);
