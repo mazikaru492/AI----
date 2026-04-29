@@ -191,7 +191,7 @@ ${JSON.stringify(words, null, 2)}
 `.trim();
 }
 
-function buildWorkbookBuffer(items: WordTestItem[]): Uint8Array {
+function buildWorkbookBuffer(items: WordTestItem[]): ArrayBuffer {
   const rows = items.map((item, index) => ({
     No: index + 1,
     Word: item.word,
@@ -214,11 +214,10 @@ function buildWorkbookBuffer(items: WordTestItem[]): Uint8Array {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "WordTest");
 
-  const workbookArray = XLSX.write(workbook, {
+  return XLSX.write(workbook, {
     type: "array",
     bookType: "xlsx",
   }) as ArrayBuffer;
-  return new Uint8Array(workbookArray);
 }
 
 export async function POST(request: Request) {
@@ -332,7 +331,7 @@ export async function POST(request: Request) {
         const workbookBuffer = buildWorkbookBuffer(generatedItems);
         const fileName = `english-word-test-${Date.now()}.xlsx`;
 
-        return new NextResponse(workbookBuffer, {
+        return new Response(workbookBuffer, {
           status: 200,
           headers: {
             "Content-Type":
