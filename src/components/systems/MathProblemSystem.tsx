@@ -165,7 +165,9 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
       const rawResponse = await response.text();
       let data: DetectionResponse | null = null;
       try {
-        data = rawResponse ? (JSON.parse(rawResponse) as DetectionResponse) : null;
+        data = rawResponse
+          ? (JSON.parse(rawResponse) as DetectionResponse)
+          : null;
       } catch {
         data = null;
       }
@@ -184,7 +186,9 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           .replace(/\s+/g, " ")
           .trim();
         const resolvedError =
-          data?.error || plainResponse || `検出に失敗しました (${response.status})`;
+          data?.error ||
+          plainResponse ||
+          `検出に失敗しました (${response.status})`;
         if (
           /request entity too large|payload too large|unexpected token.*request en/i.test(
             resolvedError,
@@ -432,12 +436,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                 type="button"
                 onClick={processImage}
                 disabled={isProcessing}
-                className="
-                  relative w-full h-14 rounded-full text-base font-semibold overflow-hidden
-                  flex items-center justify-center gap-2 transition-all duration-200
-                  active:scale-[0.96] disabled:active:scale-100
-                  bg-[#007AFF] text-white hover:bg-[#0066DD] shadow-[0_4px_14px_rgb(0,122,255,0.25)] disabled:opacity-70
-                "
+                className="relative w-full h-14 rounded-full overflow-hidden bg-[#007AFF] text-base font-semibold text-white shadow-[0_4px_14px_rgb(0,122,255,0.25)] transition-all duration-200 hover:bg-[#0066DD] active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
               >
                 {!isProcessing && (
                   <div
