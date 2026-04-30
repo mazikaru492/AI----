@@ -288,8 +288,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
   }, [processedUrl]);
 
   const usageStatusColor = useMemo(
-    () =>
-      apiUsageCount < apiUsageLimit * 0.8 ? '#34c759' : '#ff9500',
+    () => (apiUsageCount < apiUsageLimit * 0.8 ? "#34c759" : "#ff9500"),
     [apiUsageCount, apiUsageLimit],
   );
 
@@ -299,211 +298,270 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
 
       <canvas ref={canvasRef} className="hidden" />
 
-      <main className="mx-auto flex w-full max-w-lg md:max-w-2xl flex-col gap-4 md:gap-6 px-4 md:px-8 py-4 md:py-8">
-        <button
-          type="button"
-          onClick={onBack}
-          className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          システム選択に戻る
-        </button>
+      <main className="mx-auto w-full max-w-xl md:max-w-6xl px-4 md:px-8 py-4 md:py-8">
+        <div className="flex flex-col gap-4 md:gap-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            システム選択に戻る
+          </button>
 
-        <div className="text-center pt-2">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow-sm">
-            AI問題変換
-          </h1>
-          <p className="mt-1 text-xs md:text-sm text-white/75">
-            問題用紙を撮影すると、数値だけ変えた類題を作成します
-          </p>
-          <div className="flex justify-center mt-3">
-            <div className="liquid-chip flex items-center gap-2 rounded-full px-3 py-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ background: usageStatusColor }} />
-              <span className="font-mono text-sm font-medium text-white">
-                {apiUsageCount}/{apiUsageLimit}
-              </span>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="text-center md:text-left">
+              <h1 className="text-xl md:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
+                AI問題変換
+              </h1>
+              <p className="mt-1 text-xs md:text-sm text-white/75">
+                問題用紙を撮影すると、数値だけ変えた類題を作成します
+              </p>
             </div>
-          </div>
-        </div>
-
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-
-        <section className="liquid-panel overflow-hidden rounded-[24px] md:rounded-[32px]">
-          <div className="relative">
-            {previewUrl ? (
-              <div className="relative aspect-[4/3]" style={{ background: 'rgba(255, 255, 255, 0.08)' }}>
-                <img
-                  src={previewUrl}
-                  alt="プレビュー"
-                  className="w-full h-full object-contain"
+            <div className="flex justify-center md:justify-end">
+              <div className="liquid-chip flex items-center gap-2 rounded-full px-3 py-1.5">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: usageStatusColor }}
                 />
-                <button
-                  type="button"
-                  onClick={clearFile}
-                  disabled={isProcessing}
-                  className="liquid-button absolute right-2 top-2 md:right-3 md:top-3 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={openCameraPicker}
-                  disabled={isProcessing}
-                  className="liquid-button absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-                >
-                  <Camera className="w-4 h-4" />
-                  撮り直し
-                </button>
-                <button
-                  type="button"
-                  onClick={openFilePicker}
-                  disabled={isProcessing}
-                  className="liquid-button absolute bottom-2 left-2 md:bottom-3 md:left-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  ファイル
-                </button>
+                <span className="font-mono text-sm font-medium text-white">
+                  {apiUsageCount}/{apiUsageLimit}
+                </span>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={openCameraPicker}
-                disabled={isProcessing}
-                className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
-              >
-                <div className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
-                  <Camera className="w-8 h-8 md:w-10 md:h-10 text-white stroke-[1.5] drop-shadow-sm" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
-                    カメラで撮影
-                  </p>
-                  <p className="text-sm mt-1 text-white/55">
-                    タップするとカメラが起動します
-                  </p>
-                </div>
-              </button>
-            )}
-          </div>
-          {!previewUrl && (
-            <div className="px-4 pb-4 pt-0">
-              <button
-                type="button"
-                onClick={openFilePicker}
-                disabled={isProcessing}
-                className="liquid-button flex h-11 md:h-11 w-full items-center justify-center gap-2 rounded-full text-xs md:text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
-              >
-                <ImageIcon className="w-4 h-4" />
-                ファイルから画像を選択
-              </button>
             </div>
-          )}
+          </div>
 
-          {imageFile && !processedUrl && (
-            <div className="p-4 pt-0 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={processImage}
-                disabled={isProcessing}
-                className="liquid-button-primary relative flex h-12 md:h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-sm md:text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
-              >
-                {!isProcessing && (
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          <div className="grid gap-4 md:gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <section className="liquid-panel overflow-hidden rounded-[24px] md:rounded-[32px]">
+              <div className="relative">
+                {previewUrl ? (
                   <div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                    style={{ animation: "scanning 2s ease-in-out infinite" }}
-                  />
+                    className="relative aspect-[4/3]"
+                    style={{ background: "rgba(255, 255, 255, 0.08)" }}
+                  >
+                    <img
+                      src={previewUrl}
+                      alt="プレビュー"
+                      className="w-full h-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      disabled={isProcessing}
+                      className="liquid-button absolute right-2 top-2 md:right-3 md:top-3 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openCameraPicker}
+                      disabled={isProcessing}
+                      className="liquid-button absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                    >
+                      <Camera className="w-4 h-4" />
+                      撮り直し
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      disabled={isProcessing}
+                      className="liquid-button absolute bottom-2 left-2 md:bottom-3 md:left-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      ファイル
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openCameraPicker}
+                    disabled={isProcessing}
+                    className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <div className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
+                      <Camera className="w-8 h-8 md:w-10 md:h-10 text-white stroke-[1.5] drop-shadow-sm" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                        カメラで撮影
+                      </p>
+                      <p className="text-xs md:text-sm mt-1 text-white/55">
+                        タップするとカメラが起動します
+                      </p>
+                    </div>
+                  </button>
                 )}
-                <span className="relative z-10 flex items-center gap-2">
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {statusMessage || "処理中..."}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      類題を生成
-                    </>
-                  )}
-                </span>
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div className="liquid-panel-soft mx-3 md:mx-4 mb-3 md:mb-4 rounded-xl md:rounded-2xl p-3 md:p-4" style={{ borderColor: 'rgba(255, 59, 48, 0.3)' }}>
-              <p className="text-sm font-medium text-red-200">{error}</p>
-            </div>
-          )}
-        </section>
-
-        <AdBanner slot="main-page-middle" position="middle" enabled={false} />
-
-        {processedUrl && (
-          <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[24px] md:rounded-[32px]">
-            <div className="p-4 pb-0">
-              <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold text-white drop-shadow-sm">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
-                  <CheckCircle2 className="h-5 w-5" />
-                </span>
-                処理完了
-              </h2>
-            </div>
-
-            <div className="p-4">
-              <div className="overflow-hidden rounded-2xl" style={{ background: 'rgba(255, 255, 255, 0.08)' }}>
-                <img
-                  src={processedUrl}
-                  alt="処理済み画像"
-                  className="w-full h-auto object-contain"
-                />
               </div>
-            </div>
+              {!previewUrl && (
+                <div className="px-4 pb-4 pt-0">
+                  <button
+                    type="button"
+                    onClick={openFilePicker}
+                    disabled={isProcessing}
+                    className="liquid-button flex h-11 md:h-11 w-full items-center justify-center gap-2 rounded-full text-xs md:text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    ファイルから画像を選択
+                  </button>
+                </div>
+              )}
 
-            <div className="px-4 pb-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="liquid-button-success flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold transition-colors active:scale-[0.98]"
-              >
-                <Download className="w-5 h-5" />
-                画像をダウンロード
-              </button>
-            </div>
+              {imageFile && !processedUrl && (
+                <div className="p-4 pt-0 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={processImage}
+                    disabled={isProcessing}
+                    className="liquid-button-primary relative flex h-12 md:h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-sm md:text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
+                  >
+                    {!isProcessing && (
+                      <div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                        style={{
+                          animation: "scanning 2s ease-in-out infinite",
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {statusMessage || "処理中..."}
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          類題を生成
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              )}
 
-            <div className="px-4 pb-4 pt-0">
-              <button
-                type="button"
-                onClick={clearFile}
-                className="liquid-button flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98]"
-              >
-                別の画像で試す
-              </button>
-            </div>
-          </section>
-        )}
+              {error && (
+                <div
+                  className="liquid-panel-soft mx-3 md:mx-4 mb-3 md:mb-4 rounded-xl md:rounded-2xl p-3 md:p-4"
+                  style={{ borderColor: "rgba(255, 59, 48, 0.3)" }}
+                >
+                  <p className="text-sm font-medium text-red-200">{error}</p>
+                </div>
+              )}
+            </section>
 
-        {imageFile && !processedUrl && (
-          <div className="flex items-center justify-center gap-2 text-sm text-white/75">
-            <span className="w-2 h-2 rounded-full" style={{ background: '#34c759' }} />
-            <span>選択中: {imageFile.name}</span>
+            <div className="flex flex-col gap-4">
+              {processedUrl ? (
+                <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[24px] md:rounded-[32px]">
+                  <div className="p-4 pb-0">
+                    <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold text-white drop-shadow-sm">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </span>
+                      処理完了
+                    </h2>
+                  </div>
+
+                  <div className="p-4">
+                    <div
+                      className="overflow-hidden rounded-2xl"
+                      style={{ background: "rgba(255, 255, 255, 0.08)" }}
+                    >
+                      <img
+                        src={processedUrl}
+                        alt="処理済み画像"
+                        className="w-full h-auto object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="px-4 pb-4">
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      className="liquid-button-success flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold transition-colors active:scale-[0.98]"
+                    >
+                      <Download className="w-5 h-5" />
+                      画像をダウンロード
+                    </button>
+                  </div>
+
+                  <div className="px-4 pb-4 pt-0">
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      className="liquid-button flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98]"
+                    >
+                      別の画像で試す
+                    </button>
+                  </div>
+                </section>
+              ) : (
+                <section className="liquid-panel-soft rounded-[24px] md:rounded-[28px] p-4 md:p-5">
+                  <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                    撮影のコツ
+                  </h2>
+                  <ul className="mt-3 space-y-2 text-xs md:text-sm text-white/80">
+                    <li className="flex gap-2">
+                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                        1
+                      </span>
+                      <span>ページ全体が入るように、真上から撮影</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                        2
+                      </span>
+                      <span>影が入らない明るい場所で撮る</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                        3
+                      </span>
+                      <span>数式がはっきり見える距離を保つ</span>
+                    </li>
+                  </ul>
+                  <div className="mt-4 rounded-xl bg-white/10 px-3 py-2 text-[11px] md:text-xs text-white/70">
+                    大きな画像は自動で圧縮されます。
+                  </div>
+                </section>
+              )}
+
+              {imageFile && !processedUrl && (
+                <div className="liquid-panel-soft rounded-[20px] md:rounded-[24px] px-3 py-2.5 text-xs md:text-sm text-white/85">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: "#34c759" }}
+                    />
+                    <span className="font-medium">選択中の画像</span>
+                  </div>
+                  <p className="mt-1 break-all text-white/70">
+                    {imageFile.name}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          <AdBanner slot="main-page-middle" position="middle" enabled={false} />
+        </div>
       </main>
 
       <style jsx global>{`

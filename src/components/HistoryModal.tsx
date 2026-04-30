@@ -15,7 +15,7 @@ interface HistoryModalProps {
 /**
  * 履歴モーダル — iOS 26 Liquid Glass
  * PC: 中央配置、max-w-lg、余裕のあるパディング
- * スマホ: ほぼフルスクリーン幅、上部固定
+ * スマホ: ほぼフルスクリーン幅、下部シート
  */
 export function HistoryModal({
   isOpen,
@@ -28,13 +28,13 @@ export function HistoryModal({
 
   return (
     <div
-      className="liquid-overlay fixed inset-0 z-50 flex items-start justify-center px-3 md:px-4 pt-12 md:pt-16"
+      className="liquid-overlay fixed inset-0 z-50 flex items-end md:items-start justify-center px-3 md:px-4 pb-4 md:pb-0 md:pt-16"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-[24px] md:rounded-[28px] p-3.5 md:p-5"
+        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-t-[24px] rounded-b-none md:rounded-[28px] p-3.5 md:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

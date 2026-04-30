@@ -26,19 +26,19 @@ export function SystemSelector({ systems, onSelect }: SystemSelectorProps) {
       <div className="liquid-page-bg" />
 
       {/* PC: max-w-4xl+大きい余白 / スマホ: max-w-lg+小さい余白 */}
-      <main className="mx-auto flex w-full max-w-lg md:max-w-4xl flex-col gap-5 md:gap-8 px-4 md:px-8 py-6 md:py-12">
-        <header className="text-center">
+      <main className="mx-auto flex w-full max-w-xl md:max-w-5xl lg:max-w-6xl flex-col gap-6 md:gap-10 px-4 md:px-10 py-6 md:py-14">
+        <header className="text-center md:text-left">
           {/* PC: 大きなタイトル / スマホ: コンパクト */}
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white drop-shadow-sm">
+          <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white drop-shadow-sm">
             AI問題変換
           </h1>
-          <p className="mt-1.5 md:mt-3 text-xs md:text-base text-white/75">
+          <p className="mt-1.5 md:mt-3 text-xs md:text-base lg:text-lg text-white/75">
             使いたいシステムを選択してください
           </p>
         </header>
 
         {/* PC: 2カラム+大きなギャップ / スマホ: 1カラム */}
-        <section className="grid gap-3 md:gap-5 md:grid-cols-2 lg:grid-cols-2">
+        <section className="grid gap-3 md:gap-6 lg:gap-8 md:grid-cols-2">
           {systems.map((system) => {
             const Icon = ICON_MAP[system.icon] ?? Sparkles;
             return (
@@ -47,7 +47,7 @@ export function SystemSelector({ systems, onSelect }: SystemSelectorProps) {
                 type="button"
                 disabled={!system.enabled}
                 onClick={() => onSelect(system.id)}
-                className="liquid-panel group rounded-[24px] md:rounded-[28px] p-5 md:p-7 text-left transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
+                className="liquid-panel group flex h-full flex-col rounded-[24px] md:rounded-[28px] p-5 md:p-7 text-left transition-all hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
               >
                 {/* アイコン: PC→大きめ、スマホ→コンパクト */}
                 <div className="mb-3 md:mb-4 inline-flex h-10 w-10 md:h-14 md:w-14 items-center justify-center rounded-xl md:rounded-2xl bg-white/25 text-white backdrop-blur-sm">

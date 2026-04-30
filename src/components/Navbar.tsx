@@ -24,18 +24,18 @@ export function Navbar({ onHistoryClick, onCreatorClick }: NavbarProps) {
       }}
     >
       {/* PC: max-w-4xl / スマホ: max-w-md でコンテンツ幅を切り替え */}
-      <div className="mx-auto flex h-12 md:h-14 w-full max-w-md md:max-w-4xl items-center justify-between px-4 md:px-6">
+      <div className="mx-auto flex h-12 md:h-16 w-full max-w-md md:max-w-6xl items-center justify-between px-4 md:px-8">
         {/* ロゴ: PC→大きめ、スマホ→コンパクト */}
-        <div className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+        <div className="text-sm md:text-lg font-semibold text-white drop-shadow-sm">
           AI問題変換
         </div>
 
         {/* ボタン群 */}
-        <div className="flex items-center gap-1.5 md:gap-2">
+        <div className="flex items-center gap-1.5 md:gap-3">
           <button
             type="button"
             onClick={onHistoryClick}
-            className="liquid-button inline-flex h-9 md:h-10 items-center gap-1.5 md:gap-2 rounded-xl px-2.5 md:px-3 text-xs md:text-sm font-semibold"
+            className="liquid-button inline-flex h-9 md:h-11 items-center gap-1.5 md:gap-2.5 rounded-xl px-2.5 md:px-4 text-xs md:text-sm font-semibold"
           >
             <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
             履歴
@@ -43,7 +43,7 @@ export function Navbar({ onHistoryClick, onCreatorClick }: NavbarProps) {
           <button
             type="button"
             onClick={onCreatorClick}
-            className="liquid-button inline-flex h-9 md:h-10 items-center gap-1.5 md:gap-2 rounded-xl px-2.5 md:px-3 text-xs md:text-sm font-semibold"
+            className="liquid-button inline-flex h-9 md:h-11 items-center gap-1.5 md:gap-2.5 rounded-xl px-2.5 md:px-4 text-xs md:text-sm font-semibold"
           >
             <User className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
             制作者

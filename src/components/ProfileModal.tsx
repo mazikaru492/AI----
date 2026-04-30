@@ -16,7 +16,7 @@ interface ProfileModalProps {
 /**
  * 制作者紹介モーダル — iOS 26 Liquid Glass
  * PC: 中央配置、max-w-lg
- * スマホ: ほぼフルスクリーン幅
+ * スマホ: ほぼフルスクリーン幅、下部シート
  */
 export function ProfileModal({
   isOpen,
@@ -30,17 +30,19 @@ export function ProfileModal({
 
   return (
     <div
-      className="liquid-overlay fixed inset-0 z-50 flex items-center justify-center px-3 md:px-4"
+      className="liquid-overlay fixed inset-0 z-50 flex items-end md:items-center justify-center px-3 md:px-4 pb-4 md:pb-0"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-[24px] md:rounded-[28px] p-4 md:p-6"
+        className="liquid-panel animate-modalSlideUp w-full max-w-[calc(100%-8px)] md:max-w-lg rounded-t-[24px] rounded-b-none md:rounded-[28px] p-4 md:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">制作者の紹介</h2>
+          <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+            制作者の紹介
+          </h2>
           <button
             type="button"
             className="liquid-button inline-flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl"
@@ -68,8 +70,13 @@ export function ProfileModal({
               </div>
             </div>
           ) : error ? (
-            <div className="liquid-panel-soft rounded-xl p-3" style={{ borderColor: "rgba(255, 59, 48, 0.3)" }}>
-              <p className="text-xs md:text-sm font-medium text-red-200">{error}</p>
+            <div
+              className="liquid-panel-soft rounded-xl p-3"
+              style={{ borderColor: "rgba(255, 59, 48, 0.3)" }}
+            >
+              <p className="text-xs md:text-sm font-medium text-red-200">
+                {error}
+              </p>
               <button
                 type="button"
                 className="liquid-button-primary mt-3 h-10 md:h-11 w-full rounded-xl px-4 text-xs md:text-sm font-semibold"
@@ -95,13 +102,19 @@ export function ProfileModal({
                   )}
                 </div>
                 <div>
-                  <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">{introduction.name}</p>
-                  <p className="mt-0.5 text-[10px] md:text-xs font-medium text-white/65">制作者プロフィール</p>
+                  <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                    {introduction.name}
+                  </p>
+                  <p className="mt-0.5 text-[10px] md:text-xs font-medium text-white/65">
+                    制作者プロフィール
+                  </p>
                 </div>
               </div>
 
               <div className="liquid-panel-soft rounded-xl p-3">
-                <p className="whitespace-pre-wrap text-xs md:text-sm text-white/90">{introduction.zikosyoukai}</p>
+                <p className="whitespace-pre-wrap text-xs md:text-sm text-white/90">
+                  {introduction.zikosyoukai}
+                </p>
               </div>
 
               <button
@@ -114,7 +127,9 @@ export function ProfileModal({
             </div>
           ) : (
             <div className="liquid-panel-soft rounded-xl p-3">
-              <p className="text-xs md:text-sm text-white/65">読み込み準備中です。</p>
+              <p className="text-xs md:text-sm text-white/65">
+                読み込み準備中です。
+              </p>
             </div>
           )}
         </div>

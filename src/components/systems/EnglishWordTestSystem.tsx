@@ -34,6 +34,16 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
     return `選択中: ${excelFile.name}`;
   }, [excelFile]);
 
+  const summaryItems = useMemo(
+    () => [
+      { label: "ファイル", value: excelFile?.name ?? "未選択" },
+      { label: "範囲", value: range || "-" },
+      { label: "シート", value: sheetName.trim() || "先頭シート" },
+      { label: "出題数", value: `${questionCount}問` },
+    ],
+    [excelFile, range, sheetName, questionCount],
+  );
+
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -127,115 +137,179 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
   return (
     <>
       <div className="liquid-page-bg" />
-      <main className="mx-auto flex w-full max-w-lg md:max-w-2xl flex-col gap-4 md:gap-6 px-4 md:px-8 py-4 md:py-8">
-        <button
-          type="button"
-          onClick={onBack}
-          className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          システム選択に戻る
-        </button>
-
-        <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white drop-shadow-sm">
-            英語 単語穴埋めテスト
-          </h1>
-          <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-white/75">
-            Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
-          </p>
-        </section>
-
-        <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              setExcelFile(e.target.files?.[0] ?? null);
-              setError(null);
-            }}
-          />
-
+      <main className="mx-auto w-full max-w-xl md:max-w-6xl px-4 md:px-8 py-4 md:py-8">
+        <div className="flex flex-col gap-4 md:gap-6">
           <button
             type="button"
-            onClick={openFilePicker}
-            className="liquid-button mb-3 md:mb-4 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-2xl text-white/90 text-sm md:text-base"
+            onClick={onBack}
+            className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
           >
-            <FileSpreadsheet className="h-5 w-5" />
-            Excelファイルを選択
+            <ArrowLeft className="h-4 w-4" />
+            システム選択に戻る
           </button>
 
-          <p className="mb-3 md:mb-4 text-xs md:text-sm text-white/70">{selectedFileLabel}</p>
+          <div className="grid gap-4 md:gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="flex flex-col gap-4 md:gap-6">
+              <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
+                  英語 単語穴埋めテスト
+                </h1>
+                <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-white/75">
+                  Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
+                </p>
+              </section>
 
-          <div className="grid gap-3">
-            <label className="text-xs md:text-sm font-medium text-white/80">
-              単語範囲 (例: A2:A50)
-              <input
-                value={range}
-                onChange={(e) => setRange(e.target.value)}
-                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
-              />
-            </label>
+              <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    setExcelFile(e.target.files?.[0] ?? null);
+                    setError(null);
+                  }}
+                />
 
-            <label className="text-xs md:text-sm font-medium text-white/80">
-              シート名 (任意)
-              <input
-                value={sheetName}
-                onChange={(e) => setSheetName(e.target.value)}
-                placeholder="空欄なら先頭シート"
-                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
-              />
-            </label>
+                <button
+                  type="button"
+                  onClick={openFilePicker}
+                  className="liquid-button mb-3 md:mb-4 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-2xl text-white/90 text-sm md:text-base"
+                >
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Excelファイルを選択
+                </button>
 
-            <label className="text-xs md:text-sm font-medium text-white/80">
-              出題数
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={questionCount}
-                onChange={(e) =>
-                  setQuestionCount(
-                    Math.max(1, Math.min(50, Number(e.target.value) || 1)),
-                  )
-                }
-                className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
-              />
-            </label>
+                <p className="mb-3 md:mb-4 text-xs md:text-sm text-white/70">
+                  {selectedFileLabel}
+                </p>
+
+                <div className="grid gap-3">
+                  <label className="text-xs md:text-sm font-medium text-white/80">
+                    単語範囲 (例: A2:A50)
+                    <input
+                      value={range}
+                      onChange={(e) => setRange(e.target.value)}
+                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                    />
+                  </label>
+
+                  <label className="text-xs md:text-sm font-medium text-white/80">
+                    シート名 (任意)
+                    <input
+                      value={sheetName}
+                      onChange={(e) => setSheetName(e.target.value)}
+                      placeholder="空欄なら先頭シート"
+                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                    />
+                  </label>
+
+                  <label className="text-xs md:text-sm font-medium text-white/80">
+                    出題数
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={questionCount}
+                      onChange={(e) =>
+                        setQuestionCount(
+                          Math.max(
+                            1,
+                            Math.min(50, Number(e.target.value) || 1),
+                          ),
+                        )
+                      }
+                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  className="liquid-button-primary mt-4 md:mt-5 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-70"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-5 w-5" />
+                      単語テストを生成してExcel出力
+                    </>
+                  )}
+                </button>
+
+                {status && !error && (
+                  <p
+                    className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-white/90"
+                    style={{ borderColor: "rgba(52,199,89,0.3)" }}
+                  >
+                    {status}
+                  </p>
+                )}
+                {error && (
+                  <p
+                    className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-red-200"
+                    style={{ borderColor: "rgba(255,59,48,0.3)" }}
+                  >
+                    {error}
+                  </p>
+                )}
+              </section>
+            </div>
+
+            <aside className="flex flex-col gap-4 md:gap-6">
+              <section className="liquid-panel-soft rounded-[24px] md:rounded-[28px] p-4 md:p-5">
+                <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                  設定プレビュー
+                </h2>
+                <div className="mt-3 space-y-2">
+                  {summaryItems.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-xs md:text-sm text-white/85"
+                    >
+                      <span className="text-white/60">{item.label}</span>
+                      <span className="text-right font-semibold text-white">
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="liquid-panel-soft rounded-[24px] md:rounded-[28px] p-4 md:p-5">
+                <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                  生成のヒント
+                </h2>
+                <ul className="mt-3 space-y-2 text-xs md:text-sm text-white/80">
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                      1
+                    </span>
+                    <span>単語列だけを含む範囲を指定</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                      2
+                    </span>
+                    <span>シート名がある場合は正確に入力</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                      3
+                    </span>
+                    <span>出題数は範囲内の単語数以内に</span>
+                  </li>
+                </ul>
+              </section>
+            </aside>
           </div>
-
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="liquid-button-primary mt-4 md:mt-5 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-70"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                生成中...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5" />
-                単語テストを生成してExcel出力
-              </>
-            )}
-          </button>
-
-          {status && !error && (
-            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-white/90" style={{ borderColor: 'rgba(52,199,89,0.3)' }}>
-              {status}
-            </p>
-          )}
-          {error && (
-            <p className="liquid-panel-soft mt-4 rounded-xl px-3 py-2 text-sm font-medium text-red-200" style={{ borderColor: 'rgba(255,59,48,0.3)' }}>
-              {error}
-            </p>
-          )}
-        </section>
+        </div>
       </main>
     </>
   );
