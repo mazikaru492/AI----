@@ -352,42 +352,47 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
             <section className="liquid-panel overflow-hidden rounded-[24px] md:rounded-[32px]">
               <div className="relative">
                 {previewUrl ? (
-                  <div
-                    className="relative aspect-[4/3]"
-                    style={{ background: "rgba(255, 255, 255, 0.08)" }}
-                  >
-                    <img
-                      src={previewUrl}
-                      alt="プレビュー"
-                      className="w-full h-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearFile}
-                      disabled={isProcessing}
-                      className="liquid-button absolute right-2 top-2 md:right-3 md:top-3 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
+                  <>
+                    <div
+                      className="relative aspect-[4/3]"
+                      style={{ background: "rgba(255, 255, 255, 0.08)" }}
                     >
-                      <X className="w-5 h-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={openCameraPicker}
-                      disabled={isProcessing}
-                      className="liquid-button absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-                    >
-                      <Camera className="w-4 h-4" />
-                      撮り直し
-                    </button>
-                    <button
-                      type="button"
-                      onClick={openFilePicker}
-                      disabled={isProcessing}
-                      className="liquid-button absolute bottom-2 left-2 md:bottom-3 md:left-3 flex items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      ファイル
-                    </button>
-                  </div>
+                      <img
+                        src={previewUrl}
+                        alt="プレビュー"
+                        className="w-full h-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={clearFile}
+                        disabled={isProcessing}
+                        aria-label="画像をクリア"
+                        className="liquid-button absolute right-2 top-2 md:right-3 md:top-3 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-50"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2 px-3 pt-3 md:px-4 md:pt-4">
+                      <button
+                        type="button"
+                        onClick={openCameraPicker}
+                        disabled={isProcessing}
+                        className="liquid-button flex flex-1 items-center justify-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                      >
+                        <Camera className="w-4 h-4" />
+                        撮り直し
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openFilePicker}
+                        disabled={isProcessing}
+                        className="liquid-button flex flex-1 items-center justify-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        ファイル選択
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <button
                     type="button"

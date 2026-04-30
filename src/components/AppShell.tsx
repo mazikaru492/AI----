@@ -16,6 +16,7 @@ import { Navbar } from "./Navbar";
 import { HistoryModal } from "./HistoryModal";
 import { ProfileModal } from "./ProfileModal";
 import { LiquidGlassBackground } from "./LiquidGlassBackground";
+import { RippleEffect } from "./RippleEffect";
 
 // =====================================
 // Context
@@ -209,6 +210,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AppShellContext.Provider value={contextValue}>
       <div className="min-h-dvh">
         <LiquidGlassBackground />
+        <RippleEffect />
         <Navbar
           onHistoryClick={() => {
             setHistoryOpen(true);

@@ -394,6 +394,112 @@ body::after {
 }
 
 /* ================================================================
+   Ripple (水紋) — クリック位置から広がる波紋
+   ================================================================ */
+
+.liquid-ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: scale(0);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.30) 35%,
+    rgba(255, 255, 255, 0.10) 65%,
+    transparent 75%
+  );
+  box-shadow:
+    0 0 24px rgba(255, 255, 255, 0.35),
+    inset 0 0 12px rgba(255, 255, 255, 0.25);
+  mix-blend-mode: screen;
+  animation: liquidRipple 0.75s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  z-index: 5;
+}
+
+/* primary/success ボタン上では青みの水紋にして馴染ませる */
+.liquid-button-primary .liquid-ripple {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.60) 0%,
+    rgba(180, 220, 255, 0.35) 40%,
+    transparent 75%
+  );
+}
+.liquid-button-success .liquid-ripple {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.60) 0%,
+    rgba(180, 255, 200, 0.35) 40%,
+    transparent 75%
+  );
+}
+
+@keyframes liquidRipple {
+  0%   { transform: scale(0);    opacity: 0.85; }
+  60%  { opacity: 0.5; }
+  100% { transform: scale(1);    opacity: 0; }
+}
+
+/* ================================================================
+   テキスト視認性 — Liquid Glass パネル内の文字を暗色に
+   白い半透明ガラス上で白文字が読みづらかった問題を解消
+   ================================================================ */
+
+.liquid-panel,
+.liquid-panel-soft {
+  color: var(--text-on-glass);
+}
+
+/* パネル内で .text-white を使っている箇所も暗色に上書き */
+.liquid-panel .text-white,
+.liquid-panel-soft .text-white {
+  color: var(--text-on-glass) !important;
+  text-shadow: none;
+}
+.liquid-panel .text-white\/90,
+.liquid-panel-soft .text-white\/90,
+.liquid-panel .text-white\/85,
+.liquid-panel-soft .text-white\/85,
+.liquid-panel .text-white\/80,
+.liquid-panel-soft .text-white\/80 {
+  color: var(--text-on-glass) !important;
+}
+.liquid-panel .text-white\/75,
+.liquid-panel-soft .text-white\/75,
+.liquid-panel .text-white\/70,
+.liquid-panel-soft .text-white\/70,
+.liquid-panel .text-white\/65,
+.liquid-panel-soft .text-white\/65 {
+  color: var(--text-on-glass-secondary) !important;
+}
+.liquid-panel .text-white\/55,
+.liquid-panel-soft .text-white\/55,
+.liquid-panel .text-white\/50,
+.liquid-panel-soft .text-white\/50 {
+  color: rgba(26, 58, 92, 0.55) !important;
+}
+
+/* drop-shadow-sm はガラス上では不要（暗色文字には不自然な白影が出る） */
+.liquid-panel .drop-shadow-sm,
+.liquid-panel-soft .drop-shadow-sm {
+  filter: none;
+}
+
+/* パネル内のアイコン背景・数字バッジを濃色寄りに調整 */
+.liquid-panel .bg-white\/25,
+.liquid-panel-soft .bg-white\/25,
+.liquid-panel .bg-white\/20,
+.liquid-panel-soft .bg-white\/20 {
+  background-color: rgba(0, 122, 255, 0.18) !important;
+  color: var(--text-on-glass);
+}
+.liquid-panel .bg-white\/10,
+.liquid-panel-soft .bg-white\/10 {
+  background-color: rgba(26, 58, 92, 0.06) !important;
+}
+
+/* ================================================================
    Skeleton Loader (ガラス風)
    ================================================================ */
 
