@@ -303,28 +303,28 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
           <button
             type="button"
             onClick={onBack}
-            className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
+            className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm md:text-base font-medium"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
             システム選択に戻る
           </button>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="text-center md:text-left">
-              <h1 className="text-xl md:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
-                AI問題変換
+              <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white drop-shadow-sm">
+                AI 数学類題変換
               </h1>
-              <p className="mt-1 text-xs md:text-sm text-white/75">
+              <p className="mt-1.5 text-sm md:text-base text-white/80">
                 問題用紙を撮影すると、数値だけ変えた類題を作成します
               </p>
             </div>
             <div className="flex justify-center md:justify-end">
-              <div className="liquid-chip flex items-center gap-2 rounded-full px-3 py-1.5">
+              <div className="liquid-chip flex items-center gap-2 rounded-full px-4 py-2">
                 <span
-                  className="w-2 h-2 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full"
                   style={{ background: usageStatusColor }}
                 />
-                <span className="font-mono text-sm font-medium text-white">
+                <span className="font-mono text-sm md:text-base font-medium text-white">
                   {apiUsageCount}/{apiUsageLimit}
                 </span>
               </div>
@@ -398,16 +398,16 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                     type="button"
                     onClick={openCameraPicker}
                     disabled={isProcessing}
-                    className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-4 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
+                    className="flex w-full aspect-[4/3] flex-col items-center justify-center gap-5 transition-all duration-300 hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
                   >
-                    <div className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
-                      <Camera className="w-8 h-8 md:w-10 md:h-10 text-white stroke-[1.5] drop-shadow-sm" />
+                    <div className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-white/25 transition-colors backdrop-blur-sm">
+                      <Camera className="w-10 h-10 md:w-12 md:h-12 text-white stroke-[1.5] drop-shadow-sm" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                      <p className="text-base md:text-lg font-semibold text-white drop-shadow-sm">
                         カメラで撮影
                       </p>
-                      <p className="text-xs md:text-sm mt-1 text-white/55">
+                      <p className="text-sm md:text-base mt-1 text-white/65">
                         タップするとカメラが起動します
                       </p>
                     </div>
@@ -420,7 +420,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                     type="button"
                     onClick={openFilePicker}
                     disabled={isProcessing}
-                    className="liquid-button flex h-11 md:h-11 w-full items-center justify-center gap-2 rounded-full text-xs md:text-sm font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
+                    className="liquid-button flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-medium transition-colors active:scale-[0.98] disabled:opacity-50"
                   >
                     <ImageIcon className="w-4 h-4" />
                     ファイルから画像を選択
@@ -434,7 +434,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                     type="button"
                     onClick={processImage}
                     disabled={isProcessing}
-                    className="liquid-button-primary relative flex h-12 md:h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-sm md:text-base font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
+                    className="liquid-button-primary relative flex h-13 md:h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full text-base md:text-lg font-semibold transition-all duration-200 active:scale-[0.96] disabled:opacity-70 disabled:active:scale-100"
                   >
                     {!isProcessing && (
                       <div
@@ -475,7 +475,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
               {processedUrl ? (
                 <section className="liquid-panel animate-fadeIn overflow-hidden rounded-[24px] md:rounded-[32px]">
                   <div className="p-4 pb-0">
-                    <h2 className="flex items-center gap-2 text-base md:text-lg font-semibold text-white drop-shadow-sm">
+                    <h2 className="flex items-center gap-2 text-lg md:text-xl font-bold text-white drop-shadow-sm">
                       <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
                         <CheckCircle2 className="h-5 w-5" />
                       </span>
@@ -500,7 +500,7 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="liquid-button-success flex h-12 w-full items-center justify-center gap-2 rounded-full font-semibold transition-colors active:scale-[0.98]"
+                      className="liquid-button-success flex h-13 md:h-14 w-full items-center justify-center gap-2 rounded-full text-base md:text-lg font-semibold transition-colors active:scale-[0.98]"
                     >
                       <Download className="w-5 h-5" />
                       画像をダウンロード
@@ -511,38 +511,38 @@ export function MathProblemSystem({ onBack }: MathProblemSystemProps) {
                     <button
                       type="button"
                       onClick={clearFile}
-                      className="liquid-button flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors active:scale-[0.98]"
+                      className="liquid-button flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-medium transition-colors active:scale-[0.98]"
                     >
                       別の画像で試す
                     </button>
                   </div>
                 </section>
               ) : (
-                <section className="liquid-panel-soft rounded-[24px] md:rounded-[28px] p-4 md:p-5">
-                  <h2 className="text-sm md:text-base font-semibold text-white drop-shadow-sm">
+                <section className="liquid-panel-soft rounded-[24px] md:rounded-[28px] p-5 md:p-6">
+                  <h2 className="text-base md:text-lg font-bold text-white drop-shadow-sm">
                     撮影のコツ
                   </h2>
-                  <ul className="mt-3 space-y-2 text-xs md:text-sm text-white/80">
-                    <li className="flex gap-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                  <ul className="mt-3 space-y-3 text-sm md:text-base text-white/85">
+                    <li className="flex gap-3">
+                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">
                         1
                       </span>
                       <span>ページ全体が入るように、真上から撮影</span>
                     </li>
-                    <li className="flex gap-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                    <li className="flex gap-3">
+                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">
                         2
                       </span>
                       <span>影が入らない明るい場所で撮る</span>
                     </li>
-                    <li className="flex gap-2">
-                      <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold text-white">
+                    <li className="flex gap-3">
+                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">
                         3
                       </span>
                       <span>数式がはっきり見える距離を保つ</span>
                     </li>
                   </ul>
-                  <div className="mt-4 rounded-xl bg-white/10 px-3 py-2 text-[11px] md:text-xs text-white/70">
+                  <div className="mt-4 rounded-xl bg-white/10 px-4 py-2.5 text-xs md:text-sm text-white/75">
                     大きな画像は自動で圧縮されます。
                   </div>
                 </section>

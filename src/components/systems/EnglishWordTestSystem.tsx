@@ -142,7 +142,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           <button
             type="button"
             onClick={onBack}
-            className="liquid-button inline-flex w-fit items-center gap-1.5 md:gap-2 rounded-full px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium"
+            className="liquid-button inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm md:text-base font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             システム選択に戻る
@@ -151,10 +151,10 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
           <div className="grid gap-4 md:gap-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <div className="flex flex-col gap-4 md:gap-6">
               <section className="liquid-panel rounded-[24px] md:rounded-[32px] p-4 md:p-5">
-                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white drop-shadow-sm">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white drop-shadow-sm">
                   英語 単語穴埋めテスト
                 </h1>
-                <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-white/75">
+                <p className="mt-2 text-sm md:text-base text-white/80">
                   Excelの指定範囲から単語をランダム抽出し、例文と選択肢付きのテストを作成します。
                 </p>
               </section>
@@ -180,31 +180,31 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
                   Excelファイルを選択
                 </button>
 
-                <p className="mb-3 md:mb-4 text-xs md:text-sm text-white/70">
+                <p className="mb-4 text-sm md:text-base text-white/75">
                   {selectedFileLabel}
                 </p>
 
-                <div className="grid gap-3">
-                  <label className="text-xs md:text-sm font-medium text-white/80">
+                <div className="grid gap-4">
+                  <label className="text-sm md:text-base font-semibold text-white/85">
                     単語範囲 (例: A2:A50)
                     <input
                       value={range}
                       onChange={(e) => setRange(e.target.value)}
-                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                      className="liquid-input mt-1.5 h-11 md:h-12 w-full rounded-xl px-4 text-sm md:text-base"
                     />
                   </label>
 
-                  <label className="text-xs md:text-sm font-medium text-white/80">
+                  <label className="text-sm md:text-base font-semibold text-white/85">
                     シート名 (任意)
                     <input
                       value={sheetName}
                       onChange={(e) => setSheetName(e.target.value)}
                       placeholder="空欄なら先頭シート"
-                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                      className="liquid-input mt-1.5 h-11 md:h-12 w-full rounded-xl px-4 text-sm md:text-base"
                     />
                   </label>
 
-                  <label className="text-xs md:text-sm font-medium text-white/80">
+                  <label className="text-sm md:text-base font-semibold text-white/85">
                     出題数
                     <input
                       type="number"
@@ -219,7 +219,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
                           ),
                         )
                       }
-                      className="liquid-input mt-1 h-10 md:h-11 w-full rounded-xl px-3 text-sm"
+                      className="liquid-input mt-1.5 h-11 md:h-12 w-full rounded-xl px-4 text-sm md:text-base"
                     />
                   </label>
                 </div>
@@ -228,7 +228,7 @@ export function EnglishWordTestSystem({ onBack }: EnglishWordTestSystemProps) {
                   type="button"
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="liquid-button-primary mt-4 md:mt-5 flex h-12 md:h-14 w-full items-center justify-center gap-2 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-70"
+                  className="liquid-button-primary mt-5 flex h-13 md:h-14 w-full items-center justify-center gap-2 rounded-full text-base md:text-lg font-semibold transition-colors disabled:opacity-70"
                 >
                   {isGenerating ? (
                     <>

@@ -24,28 +24,28 @@ export function Navbar({ onHistoryClick, onCreatorClick }: NavbarProps) {
       }}
     >
       {/* PC: max-w-4xl / スマホ: max-w-md でコンテンツ幅を切り替え */}
-      <div className="mx-auto flex h-12 md:h-16 w-full max-w-md md:max-w-6xl items-center justify-between px-4 md:px-8">
-        {/* ロゴ: PC→大きめ、スマホ→コンパクト */}
-        <div className="text-sm md:text-lg font-semibold text-white drop-shadow-sm">
+      <div className="mx-auto flex h-14 md:h-18 w-full max-w-md md:max-w-6xl items-center justify-between px-4 md:px-8">
+        {/* ロゴ */}
+        <div className="text-base md:text-xl font-semibold text-white drop-shadow-sm">
           AI問題変換
         </div>
 
         {/* ボタン群 */}
-        <div className="flex items-center gap-1.5 md:gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             type="button"
             onClick={onHistoryClick}
-            className="liquid-button inline-flex h-9 md:h-11 items-center gap-1.5 md:gap-2.5 rounded-xl px-2.5 md:px-4 text-xs md:text-sm font-semibold"
+            className="liquid-button inline-flex h-10 md:h-12 items-center gap-2 md:gap-2.5 rounded-xl px-3 md:px-5 text-sm md:text-base font-semibold"
           >
-            <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
+            <Clock className="h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
             履歴
           </button>
           <button
             type="button"
             onClick={onCreatorClick}
-            className="liquid-button inline-flex h-9 md:h-11 items-center gap-1.5 md:gap-2.5 rounded-xl px-2.5 md:px-4 text-xs md:text-sm font-semibold"
+            className="liquid-button inline-flex h-10 md:h-12 items-center gap-2 md:gap-2.5 rounded-xl px-3 md:px-5 text-sm md:text-base font-semibold"
           >
-            <User className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
+            <User className="h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
             制作者
           </button>
         </div>
