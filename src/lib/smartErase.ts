@@ -108,6 +108,12 @@ export interface SmartEraseOptions {
   minFontSize?: number;
   /** 小さなボックスの閾値（px） - これ以下はパディング1pxを使用 - デフォルト: 20 */
   smallBoxThreshold?: number;
+  /** 外部から指定されたカスタム置換マッピング（配列・関数・Map・Record） */
+  customReplacements?:
+    | Map<string, string>
+    | Record<string, string>
+    | string[]
+    | ((detection: DetectedNumber, index: number) => string);
 }
 
 /**
@@ -245,84 +251,62 @@ function generateDifferentNumber(original: string): string {
 }
 
 // ====================================
-// 安全フィルタリング（製品化Phase1）
+// 安全フィルタリング
 // ====================================
-
-/** 安全な数字パターン（1-2桁の整数のみ） */
-const SAFE_NUMBER_RE = /^\d{1,2}$/;
-
-/** 複雑構造を示す役割（これらはスキップ） */
-const COMPLEX_ROLES: TextRole[] = [
-  'fraction-bar', 'fraction-num', 'fraction-den',
-  'sqrt-sign', 'sqrt-vinculum', 'sqrt-content',
-  'sum-op', 'sum-lower', 'sum-upper',
-  'prod-op', 'prod-lower', 'prod-upper',
-  'int-op', 'int-lower', 'int-upper',
-  'lim-op', 'lim-sub',
-  'matrix-bracket', 'matrix-element',
-];
 
 /**
  * このトークンを安全に置換できるかを判定
- * 複雑構造や異常なbboxはスキップ
+ * 演算子記号や分数線などは保護し、数字のみを置換対象とする
  */
 function isSafeReplacementToken(
   detection: DetectedNumber,
   canvasWidth: number,
   canvasHeight: number
 ): boolean {
-  const { text, bbox, role = 'base' } = detection;
+  const { text, bbox, role = "base" } = detection;
 
-  // 1. 単純な1-2桁の整数のみを対象
-  if (!SAFE_NUMBER_RE.test(text)) {
-    console.log(`[SafeFilter] Skip: "${text}" - not 1-2 digit number`);
+  // 1. 数字を含んでいるか確認
+  if (!/\d/.test(text)) {
     return false;
   }
 
-  // 2. 複雑構造の役割はスキップ
-  if (COMPLEX_ROLES.includes(role)) {
-    console.log(`[SafeFilter] Skip: "${text}" - complex role: ${role}`);
+  // 2. 演算子記号や構造要素はスキップ（数字以外を誤消去しない）
+  const NON_NUMBER_ROLES: TextRole[] = [
+    "fraction-bar",
+    "sqrt-sign",
+    "sqrt-vinculum",
+    "sum-op",
+    "prod-op",
+    "int-op",
+    "lim-op",
+    "matrix-bracket",
+    "operator",
+    "relation",
+    "paren-left",
+    "paren-right",
+    "abs-bar",
+    "vector-arrow",
+    "infinity",
+  ];
+  if (NON_NUMBER_ROLES.includes(role)) {
     return false;
   }
 
-  // 3. 上付き・下付きもスキップ（位置ずれのリスク高い）
-  if (role === 'sup' || role === 'sub') {
-    console.log(`[SafeFilter] Skip: "${text}" - script role: ${role}`);
+  // 3. 上付き・下付き（指数や特殊添字は原則として元画像を維持）
+  if (role === "sup" || role === "sub") {
     return false;
   }
 
-  // 4. bbox異常検出
-  // 幅または高さが0以下
-  if (bbox.width <= 0 || bbox.height <= 0) {
-    console.log(`[SafeFilter] Skip: "${text}" - invalid bbox size`);
+  // 4. bbox 妥当性チェック
+  if (bbox.width <= 0 || bbox.height <= 0 || isNaN(bbox.x) || isNaN(bbox.y)) {
     return false;
   }
 
-  // 幅が画像全体の15%を超える（異常に大きい）
-  if (bbox.width > canvasWidth * 0.15) {
-    console.log(`[SafeFilter] Skip: "${text}" - bbox too wide`);
+  // 画像全体の80%を超える異常に巨大なbboxは除外
+  if (bbox.width > canvasWidth * 0.8 || bbox.height > canvasHeight * 0.8) {
     return false;
   }
 
-  // 高さが画像全体の10%を超える（異常に大きい）
-  if (bbox.height > canvasHeight * 0.1) {
-    console.log(`[SafeFilter] Skip: "${text}" - bbox too tall`);
-    return false;
-  }
-
-  // 5. 位置が画像の端すぎる（右端5%以内はスキップ）
-  if (bbox.x + bbox.width > canvasWidth * 0.95) {
-    console.log(`[SafeFilter] Skip: "${text}" - too close to right edge`);
-    return false;
-  }
-
-  // 6. 位置が画像の上端5%以内はスキップ（ヘッダー領域）
-  if (bbox.y < canvasHeight * 0.05) {
-    console.log(`[SafeFilter] Skip: "${text}" - too close to top edge`);
-    return false;
-  }
-
-  console.log(`[SafeFilter] OK: "${text}" at (${bbox.x}, ${bbox.y})`);
   return true;
 }
 
@@ -670,10 +654,11 @@ export function smartEraseAndReplace(
   // ImageDataを直接操作する（Blob消去用）
   let imageDataModified = false;
 
-  for (const detection of detections) {
+  for (let i = 0; i < detections.length; i++) {
+    const detection = detections[i];
     const { text, bbox, fontStyle } = detection;
 
-    // 安全フィルタ: 単純係数のみを対象
+    // 安全フィルタ: 演算子や記号はスキップ
     if (!isSafeReplacementToken(detection, canvasWidth, canvasHeight)) {
       continue; // このトークンはスキップ（元画像のまま）
     }
@@ -735,8 +720,32 @@ export function smartEraseAndReplace(
       // ここでは一旦スキップし、後でcontextで描画
     }
 
-    // 新しいランダム数字を生成
-    const newNumber = generateDifferentNumber(text);
+    // 新しい数字の決定（配列・インデックス指定・マップの順で検索）
+    let newNumber: string;
+    if (Array.isArray(options.customReplacements)) {
+      newNumber = options.customReplacements[i] ?? generateDifferentNumber(text);
+    } else if (typeof options.customReplacements === "function") {
+      newNumber = options.customReplacements(detection, i) ?? generateDifferentNumber(text);
+    } else if (
+      options.customReplacements instanceof Map &&
+      options.customReplacements.has(`${i}:${text}`)
+    ) {
+      newNumber = options.customReplacements.get(`${i}:${text}`)!;
+    } else if (
+      options.customReplacements instanceof Map &&
+      options.customReplacements.has(text)
+    ) {
+      newNumber = options.customReplacements.get(text)!;
+    } else if (
+      options.customReplacements &&
+      typeof options.customReplacements === "object" &&
+      text in options.customReplacements
+    ) {
+      newNumber = (options.customReplacements as Record<string, string>)[text];
+    } else {
+      newNumber = generateDifferentNumber(text);
+    }
+    replacements.set(`${i}:${text}`, newNumber);
     replacements.set(text, newNumber);
 
     // フォントプリセットを取得

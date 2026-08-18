@@ -5,7 +5,14 @@ import type { DetectedNumber } from "@/lib/smartErase";
 export const runtime = "nodejs";
 
 const DETECT_CACHE_TTL_MS = 10 * 60 * 1000;
-const detectResultCache = new Map<string, { expiresAt: number; value: DetectedNumber[] }>();
+
+interface CachedDetectResult {
+  numbers: DetectedNumber[];
+  rawText?: string;
+  tokens?: unknown[];
+}
+
+const detectResultCache = new Map<string, { expiresAt: number; value: CachedDetectResult }>();
 
 interface DetectRequest {
   imageBase64: string;
@@ -52,10 +59,17 @@ export async function POST(request: Request) {
     }
 
     const cacheKey = `${imageBase64.length}:${mimeType || "image/png"}:${imageWidth}x${imageHeight}:${imageBase64.slice(0, 256)}`;
-    const cached = detectResultCache.get(cacheKey);
+    interface CachedDetectResult {
+      numbers: DetectedNumber[];
+      rawText?: string;
+      tokens?: unknown[];
+    }
+    const cached = detectResultCache.get(cacheKey) as { expiresAt: number; value: CachedDetectResult } | undefined;
     if (cached && cached.expiresAt > Date.now()) {
       return NextResponse.json({
-        numbers: cached.value,
+        numbers: cached.value.numbers,
+        rawText: cached.value.rawText,
+        tokens: cached.value.tokens,
         success: true,
         glmOcrUsed: true,
         cached: true,
@@ -79,11 +93,17 @@ export async function POST(request: Request) {
 
     detectResultCache.set(cacheKey, {
       expiresAt: Date.now() + DETECT_CACHE_TTL_MS,
-      value: result.numbers,
+      value: {
+        numbers: result.numbers,
+        rawText: result.rawText,
+        tokens: result.tokens,
+      },
     });
 
     return NextResponse.json({
       numbers: result.numbers,
+      rawText: result.rawText,
+      tokens: result.tokens,
       success: true,
       glmOcrUsed: true,
       layoutDetailsCount: result.layoutDetailsCount,
